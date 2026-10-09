@@ -52,5 +52,5 @@ SpatialEQ is free and supported by ads.
 Made by Savannah DSP · savannahdsp.com
 
 **Contact website**: https://savannahdsp.com
-**Privacy policy**: https://savannah-dsp.github.io/SpatialEQ/privacy-policy.html
+**Privacy policy**: https://kiptoo-deus.github.io/SpatialEQ/privacy-policy.html
 **Contact email (you)**: the support address you want shown publicly on Play

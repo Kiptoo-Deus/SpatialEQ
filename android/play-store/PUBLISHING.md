@@ -48,7 +48,7 @@ Never tap your own live ads: AdMob bans accounts for invalid clicks. On your own
 
 ## 4. App content answers
 
-**Privacy policy URL**: https://savannah-dsp.github.io/SpatialEQ/privacy-policy.html
+**Privacy policy URL**: https://kiptoo-deus.github.io/SpatialEQ/privacy-policy.html
 
 **Ads**: Yes, the app contains ads.
 

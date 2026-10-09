@@ -1,6 +1,6 @@
 # SpatialEQ
 
-[![CI](https://github.com/Savannah-DSP/SpatialEQ/actions/workflows/ci.yml/badge.svg)](https://github.com/Savannah-DSP/SpatialEQ/actions/workflows/ci.yml)
+[![CI](https://github.com/Kiptoo-Deus/SpatialEQ/actions/workflows/ci.yml/badge.svg)](https://github.com/Kiptoo-Deus/SpatialEQ/actions/workflows/ci.yml)
 
 **Parametric EQ and spatial audio with an interactive 3D scene, for macOS, Android and iOS.**
 
@@ -16,7 +16,7 @@ By [Savannah DSP](https://savannahdsp.com) · v1.0.0 · macOS 14.2 or later · A
 
 ## Install
 
-1. Download **`SpatialEQ-1.0.0.pkg`** (installer) or **`SpatialEQ-1.0.0.dmg`** (drag to Applications) from the [latest release](https://github.com/Savannah-DSP/SpatialEQ/releases/latest).
+1. Download **`SpatialEQ-1.0.0.pkg`** (installer) or **`SpatialEQ-1.0.0.dmg`** (drag to Applications) from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest).
 2. Open it. This first release is not notarized by Apple, so macOS will block it the first time. Go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
 3. Launch SpatialEQ and click **Allow** when macOS asks for **System Audio Recording**. SpatialEQ needs this to process the sound from your other apps. Audio is processed on your Mac and never recorded or sent anywhere.
 

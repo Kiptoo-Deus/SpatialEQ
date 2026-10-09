@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.sp
 import com.savannahdsp.spatialeq.AppStore
 import com.savannahdsp.spatialeq.model.Preset
 
-const val PRIVACY_POLICY_URL = "https://savannah-dsp.github.io/SpatialEQ/privacy-policy.html"
+const val PRIVACY_POLICY_URL = "https://kiptoo-deus.github.io/SpatialEQ/privacy-policy.html"
 
 @Composable
 fun PresetsScreen(modifier: Modifier = Modifier) {
