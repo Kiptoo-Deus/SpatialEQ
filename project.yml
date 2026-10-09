@@ -1,0 +1,49 @@
+name: SpatialEQ
+options:
+  bundleIdPrefix: com.savannahdsp
+  deploymentTarget:
+    macOS: "14.2"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CLANG_CXX_LANGUAGE_STANDARD: c++17
+    MACOSX_DEPLOYMENT_TARGET: "14.2"
+  configs:
+    Release:
+      ARCHS: "arm64 x86_64"
+      ONLY_ACTIVE_ARCH: NO
+targets:
+  SpatialEQ:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+      - path: DSP/src
+        excludes: ["*.md"]
+      - path: DSP/include
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.savannahdsp.spatialeq
+        PRODUCT_NAME: SpatialEQ
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_OBJC_BRIDGING_HEADER: App/Support/SpatialEQ-Bridging-Header.h
+        HEADER_SEARCH_PATHS: $(SRCROOT)/DSP/include
+        CODE_SIGN_ENTITLEMENTS: App/Support/SpatialEQ.entitlements
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: YES
+        GCC_OPTIMIZATION_LEVEL: "3"
+        COMBINE_HIDPI_IMAGES: YES
+    info:
+      path: App/Support/Info.plist
+      properties:
+        CFBundleDisplayName: SpatialEQ
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.music
+        LSMinimumSystemVersion: "14.2"
+        NSAudioCaptureUsageDescription: SpatialEQ processes the sound from all your apps to apply EQ and spatial audio. Audio is processed locally and never recorded or sent anywhere.
+        NSMotionUsageDescription: SpatialEQ uses your headphones' motion sensors so virtual sound sources stay in place when you turn your head.
+        NSHumanReadableCopyright: "© 2026 Savannah DSP"
