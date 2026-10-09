@@ -33,11 +33,15 @@ import androidx.compose.ui.unit.sp
 import com.savannahdsp.spatialeq.AppStore
 import com.savannahdsp.spatialeq.model.Preset
 
+const val PRIVACY_POLICY_URL = "https://savannah-dsp.github.io/SpatialEQ/privacy-policy.html"
+
 @Composable
 fun PresetsScreen(modifier: Modifier = Modifier) {
     val current by AppStore.presetId.collectAsState()
     val user by AppStore.userPresets.collectAsState()
     var naming by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val privacyRequired by Ads.privacyOptionsRequired.collectAsState()
     var name by remember { mutableStateOf("") }
 
     LazyColumn(modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 12.dp)) {
@@ -52,6 +56,15 @@ fun PresetsScreen(modifier: Modifier = Modifier) {
         if (user.isNotEmpty()) {
             item { Header("My presets") }
             items(user, key = { it.id }) { p -> PresetRow(p, p.id == current) { AppStore.deletePreset(p) } }
+        }
+        item {
+            Row(Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
+                TextButton(onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse(PRIVACY_POLICY_URL))) }) { Text("Privacy policy") }
+                if (privacyRequired) TextButton(onClick = { (context as? android.app.Activity)?.let(Ads::showPrivacyOptions) }) {
+                    Text("Ad privacy choices")
+                }
+            }
         }
     }
 

@@ -30,7 +30,10 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import com.savannahdsp.spatialeq.audio.CaptureService
+import androidx.compose.foundation.layout.Column
+import com.savannahdsp.spatialeq.ui.Ads
 import com.savannahdsp.spatialeq.ui.AppCatalog
+import com.savannahdsp.spatialeq.ui.BannerAd
 import com.savannahdsp.spatialeq.ui.AppsScreen
 import com.savannahdsp.spatialeq.ui.EffectsScreen
 import com.savannahdsp.spatialeq.ui.EqScreen
@@ -84,6 +87,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         lifecycleScope.launch { AppCatalog.get(this@MainActivity) } // warm the Apps list
+        Ads.init(this)
         setContent {
             SpatialEqTheme {
                 var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -91,6 +95,9 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     containerColor = Palette.background,
                     bottomBar = {
+                        Column {
+                        // One banner on Home and Presets only, away from sliders and the 3D controls.
+                        if (tab == 0 || tab == 4) BannerAd()
                         NavigationBar(containerColor = Palette.panel) {
                             listOf(
                                 "Home" to Icons.Filled.Home, "EQ" to Icons.Filled.Equalizer,
@@ -100,6 +107,7 @@ class MainActivity : ComponentActivity() {
                                 NavigationBarItem(selected = tab == i, onClick = { tab = i },
                                     icon = { Icon(icon, label) }, label = { Text(label) })
                             }
+                        }
                         }
                     },
                 ) { padding ->

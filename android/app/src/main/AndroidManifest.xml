@@ -10,8 +10,14 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Optional, granted once over ADB: lets SpatialEQ find every app's audio session. -->
     <uses-permission android:name="android.permission.DUMP" tools:ignore="ProtectedPermissions" />
-    <!-- Map audio sessions to app names. -->
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
+
+    <!-- Visibility of launchable apps (Apps screen, naming audio sessions) without QUERY_ALL_PACKAGES. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
 
     <application
         android:name=".SpatialEqApplication"
@@ -20,6 +26,10 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:allowBackup="true"
         android:theme="@style/Theme.SpatialEQ">
+
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}" />
 
         <activity
             android:name=".MainActivity"
