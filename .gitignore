@@ -9,3 +9,4 @@ android/app/.cxx/
 keystore.properties
 *.jks
 .idea/
+*.log
