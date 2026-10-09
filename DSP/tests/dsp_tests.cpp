@@ -179,6 +179,7 @@ void testBypassIsDry() {
     sq_engine_destroy(e);
 }
 
+#ifdef SQ_HAS_COREAUDIO
 void testAudioBufferListInterleaved() {
     sq_engine* e = makeEngine(neutral());
     const int frames = 256;
@@ -201,6 +202,8 @@ void testAudioBufferListInterleaved() {
     CHECK(out[(frames - 1) * 4 + 2] == 0.0f && out[(frames - 1) * 4 + 3] == 0.0f, "extra outputs zeroed");
     sq_engine_destroy(e);
 }
+
+#endif
 
 void testStabilityAllFeatures() {
     sq_params p;
@@ -341,7 +344,9 @@ int main() {
     testHeadYawMovesImage();
     testLimiterCeiling();
     testBypassIsDry();
+#ifdef SQ_HAS_COREAUDIO
     testAudioBufferListInterleaved();
+#endif
     testStabilityAllFeatures();
     testFifoThreaded();
     testInterleavedAndSpectrum();

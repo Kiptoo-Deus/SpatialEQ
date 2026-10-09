@@ -61,6 +61,8 @@ fun PresetsScreen(modifier: Modifier = Modifier) {
             Row(Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
                 TextButton(onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
                     android.net.Uri.parse(PRIVACY_POLICY_URL))) }) { Text("Privacy policy") }
+                TextButton(onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://savannahdsp.com"))) }) { Text("savannahdsp.com") }
                 if (privacyRequired) TextButton(onClick = { (context as? android.app.Activity)?.let(Ads::showPrivacyOptions) }) {
                     Text("Ad privacy choices")
                 }

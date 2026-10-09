@@ -1,8 +1,10 @@
 # SpatialEQ
 
+[![CI](https://github.com/Savannah-DSP/SpatialEQ/actions/workflows/ci.yml/badge.svg)](https://github.com/Savannah-DSP/SpatialEQ/actions/workflows/ci.yml)
+
 **Parametric EQ and spatial audio with an interactive 3D scene, for macOS, Android and iOS.**
 
-By [Savannah DSP](https://github.com/Savannah-DSP) · v1.0.0 · macOS 14.2 or later · Apple silicon and Intel
+By [Savannah DSP](https://savannahdsp.com) · v1.0.0 · macOS 14.2 or later · Apple silicon and Intel
 
 ![SpatialEQ orbiting 360° while music plays](docs/spatialeq-360.gif)
 
@@ -83,6 +85,15 @@ cd android && ./gradlew assembleRelease    # Android APK (needs the Android SDK 
 | `macos/` | macOS app (Core Audio tap routing, menu bar, installer scripts) |
 | `ios/` | iOS player app |
 | `android/` | Android app (Kotlin + Compose, JNI to the DSP core) and a test-player helper |
+| `.github/workflows/` | CI on every push (DSP tests on Linux/macOS/Windows, macOS/iOS/Android builds); tagged releases publish installers |
+
+### Releases
+
+Push a version tag to build every platform and publish a GitHub Release with the installers attached:
+
+```bash
+git tag v1.1.0 && git push origin v1.1.0
+```
 
 ## Notes
 
@@ -90,4 +101,4 @@ cd android && ./gradlew assembleRelease    # Android APK (needs the Android SDK 
 - Some DRM-protected playback may not be capturable by macOS taps.
 - With AirPods, turn off Apple's own Spatial Audio in Control Centre while using SpatialEQ's virtual surround.
 
-© 2026 Savannah DSP
+© 2026 [Savannah DSP](https://savannahdsp.com)

@@ -1,0 +1,31 @@
+name: Release
+
+# Push a tag like v1.1.0 to build every platform and publish a GitHub Release with the installers.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la artifacts
+          (cd artifacts && sha256sum *.pkg *.dmg *.apk *.aab > SHA256SUMS-all.txt)
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --title "SpatialEQ $GITHUB_REF_NAME" --generate-notes artifacts/*
