@@ -8,18 +8,6 @@ enum Theme {
     static let accent2 = Color(red: 0.98, green: 0.62, blue: 0.27)
     static let textDim = Color.white.opacity(0.55)
 
-    /// One colour per virtual channel: L R C Ls Rs Lb Rb.
-    static let channelColors: [NSColor] = [
-        NSColor(calibratedRed: 0.30, green: 0.70, blue: 1.00, alpha: 1),
-        NSColor(calibratedRed: 1.00, green: 0.40, blue: 0.45, alpha: 1),
-        NSColor(calibratedRed: 0.95, green: 0.95, blue: 0.95, alpha: 1),
-        NSColor(calibratedRed: 0.55, green: 0.45, blue: 1.00, alpha: 1),
-        NSColor(calibratedRed: 1.00, green: 0.55, blue: 0.85, alpha: 1),
-        NSColor(calibratedRed: 0.35, green: 0.95, blue: 0.65, alpha: 1),
-        NSColor(calibratedRed: 1.00, green: 0.80, blue: 0.30, alpha: 1),
-        NSColor(calibratedRed: 0.70, green: 0.70, blue: 0.70, alpha: 1),
-    ]
-
     static func formatHz(_ f: Double) -> String {
         f >= 1000 ? String(format: f >= 10000 ? "%.0fk" : "%.1fk", f / 1000) : String(format: "%.0f", f)
     }

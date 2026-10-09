@@ -1,5 +1,11 @@
 // DSP core tests: run with `cmake -S DSP -B build/dsp && cmake --build build/dsp && build/dsp/dsp_tests`
 #include "spatialeq_dsp.h"
+#include "spatialeq_fifo.h"
+#include "spatialeq_spectrum.h"
+
+#include <algorithm>
+#include <atomic>
+#include <thread>
 
 #include <chrono>
 #include <cmath>
@@ -228,6 +234,83 @@ void testStabilityAllFeatures() {
     }
 }
 
+void testFifoThreaded() {
+    // Producer writes a ramp from another thread; the consumer must see it intact and in order.
+    sq_fifo* f = sq_fifo_create(1024);
+    const int total = 200000;
+    std::thread producer([&] {
+        std::vector<float> l(97), r(97);
+        int next = 0;
+        while (next < total) {
+            const int n = std::min<int>(97, total - next);
+            for (int i = 0; i < n; ++i) { l[i] = float(next + i); r[i] = -float(next + i); }
+            int done = 0;
+            while (done < n) done += sq_fifo_write(f, l.data() + done, r.data() + done, n - done);
+            next += n;
+        }
+    });
+    std::vector<float> l(64), r(64);
+    int expected = 0;
+    bool ordered = true;
+    while (expected < total) {
+        const int n = sq_fifo_read(f, l.data(), r.data(), 64);
+        for (int i = 0; i < n; ++i) {
+            ordered &= l[i] == float(expected) && r[i] == -float(expected);
+            ++expected;
+        }
+    }
+    producer.join();
+    CHECK(ordered, "fifo delivered samples out of order or corrupted");
+    CHECK(sq_fifo_frames_consumed(f) == total, "fifo consumed count %lld", (long long)sq_fifo_frames_consumed(f));
+
+    // Flush: consumer discards buffered audio, then the producer may write again.
+    std::vector<float> ones(100, 1.0f);
+    sq_fifo_write(f, ones.data(), ones.data(), 100);
+    sq_fifo_request_flush(f);
+    CHECK(sq_fifo_write(f, ones.data(), ones.data(), 100) == 0, "writes are refused while a flush is pending");
+    CHECK(sq_fifo_read(f, l.data(), r.data(), 64) == 0 && !sq_fifo_flush_pending(f), "flush handled by reader");
+    CHECK(sq_fifo_available_frames(f) == 0 && sq_fifo_frames_consumed(f) == 0, "fifo empty after flush");
+    sq_fifo_destroy(f);
+}
+
+void testInterleavedAndSpectrum() {
+    // 4-channel interleaved output: first two carry the processed stereo, the rest are zeroed.
+    sq_engine* e = makeEngine(neutral());
+    const int frames = 2048;
+    std::vector<float> in(frames * 2), out(frames * 4, 7.0f);
+    for (int k = 0; k < 24; ++k) {
+        for (int i = 0; i < frames; ++i) {
+            const float v = float(0.5 * std::sin(2 * kPi * 1000.0 * (k * frames + i) / kFs));
+            in[i * 2] = v;
+            in[i * 2 + 1] = v;
+        }
+        sq_engine_process_interleaved(e, in.data(), 2, out.data(), 4, frames);
+    }
+    double ms = 0;
+    bool zeroed = true;
+    for (int i = 0; i < frames; ++i) {
+        ms += double(out[i * 4]) * out[i * 4];
+        zeroed &= out[i * 4 + 2] == 0.0f && out[i * 4 + 3] == 0.0f;
+    }
+    CHECK(std::fabs(std::sqrt(ms / frames) - 0.3536) < 0.01, "interleaved rms %.4f", std::sqrt(ms / frames));
+    CHECK(zeroed, "extra interleaved channels zeroed");
+
+    // Spectrum: the band containing 1 kHz should be the loudest.
+    sq_spectrum* sp = sq_spectrum_create(64);
+    std::vector<float> bands(64);
+    float level = 0;
+    for (int k = 0; k < 12; ++k) { // alternate processing and analysis, like a live UI
+        sq_engine_process_interleaved(e, in.data(), 2, out.data(), 4, frames);
+        level = sq_spectrum_update(sp, e, kFs, bands.data());
+    }
+    const int loudest = int(std::max_element(bands.begin(), bands.end()) - bands.begin());
+    const float f = sq_spectrum_band_frequency(sp, loudest);
+    CHECK(f > 800 && f < 1250, "spectrum peak band at %.0f Hz", f);
+    CHECK(level > 0.5f, "spectrum level %.2f", level);
+    sq_spectrum_destroy(sp);
+    sq_engine_destroy(e);
+}
+
 void benchmark() {
     sq_params p;
     sq_params_default(&p);
@@ -260,6 +343,8 @@ int main() {
     testBypassIsDry();
     testAudioBufferListInterleaved();
     testStabilityAllFeatures();
+    testFifoThreaded();
+    testInterleavedAndSpectrum();
     benchmark();
     if (failures) {
         std::printf("%d check(s) failed\n", failures);

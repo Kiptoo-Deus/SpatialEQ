@@ -6,7 +6,7 @@ project(spatialeq_dsp CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_library(spatialeq_dsp STATIC src/Engine.cpp)
+add_library(spatialeq_dsp STATIC src/Engine.cpp src/Fifo.cpp src/Spectrum.cpp)
 target_include_directories(spatialeq_dsp PUBLIC include)
 target_compile_options(spatialeq_dsp PRIVATE -Wall -Wextra -O2)
 

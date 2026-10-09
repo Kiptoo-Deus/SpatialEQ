@@ -3,3 +3,9 @@ DerivedData/
 *.xcodeproj/
 .DS_Store
 xcuserdata/
+local.properties
+.gradle/
+android/app/.cxx/
+keystore.properties
+*.jks
+.idea/

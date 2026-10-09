@@ -1,6 +1,6 @@
-# SpatialEQ for macOS
+# SpatialEQ
 
-**System-wide parametric EQ and spatial audio for every app on your Mac, controlled from an interactive 3D scene.**
+**Parametric EQ and spatial audio with an interactive 3D scene, for macOS, Android and iOS.**
 
 By [Savannah DSP](https://github.com/Savannah-DSP) · v1.0.0 · macOS 14.2 or later · Apple silicon and Intel
 
@@ -43,21 +43,46 @@ The signal chain is: preamp → dialogue → bass → (binaural renderer | widen
 
 The EQ comes after the spatial stage so that headphone correction applies to exactly what reaches your ears. The real-time engine never allocates memory or takes locks on the audio thread, and it runs about 70× faster than real time with every feature enabled.
 
+## Platforms
+
+| Platform | What it does | Status |
+|---|---|---|
+| **macOS** 14.2+ | System-wide: every app, every output device (Core Audio taps) | Released (v1.0.0) |
+| **Android** 10+ | System-wide: every app that allows audio capture, with per-app on/off switches | In testing |
+| **iOS** 17+ | Music player for your own files with the full EQ, virtual surround and head tracking. iOS doesn't let apps process other apps' audio. | In development |
+| **Windows** | Planned: audio-engine plug-in (APO) | Planned |
+
+All platforms share one C++ DSP core (`DSP/`), so sound and presets are identical everywhere.
+
+### Android system-wide setup
+
+Android needs two things to process other apps:
+- **Every time:** tap **Start** and accept the screen-capture prompt. Android's "capture other apps' audio" feature runs through this prompt.
+- **Once, optional but recommended:** grant one permission from a computer so SpatialEQ can find every app's audio:
+
+```bash
+adb shell pm grant com.savannahdsp.spatialeq android.permission.DUMP
+```
+
+Apps that block audio capture, such as some streaming apps, keep their original sound.
+
 ## Build from source
 
 ```bash
 brew install xcodegen cmake
-scripts/build.sh      # DSP unit tests + Release build
-scripts/package.sh    # .pkg and .dmg installers in build/release
+macos/scripts/build.sh                     # DSP unit tests + macOS Release build
+macos/scripts/package.sh                   # macOS .pkg and .dmg in macos/build/release
+cd ios && xcodegen generate                # iOS project (open SpatialEQ-iOS.xcodeproj)
+cd android && ./gradlew assembleRelease    # Android APK (needs the Android SDK + NDK 28)
 ```
 
 | Path | Contents |
 |---|---|
-| `DSP/` | C++17 real-time engine, C API (`spatialeq_dsp.h`) and unit tests |
-| `App/Audio/` | Tap routing, device management, spectrum analyzer, head tracking |
-| `App/Model/` | Settings, presets, AutoEq import/export, persistence |
-| `App/UI/` | SwiftUI interface, SceneKit 3D scene, EQ editor, menu bar panel |
-| `scripts/` | Build, packaging, notarization and README media capture |
+| `DSP/` | C++17 real-time engine, FIFO, spectrum analyser, C API and unit tests |
+| `shared/Swift/` | Settings, presets, AutoEq, analyser, head tracking and 3D scene shared by macOS and iOS |
+| `macos/` | macOS app (Core Audio tap routing, menu bar, installer scripts) |
+| `ios/` | iOS player app |
+| `android/` | Android app (Kotlin + Compose, JNI to the DSP core) and a test-player helper |
 
 ## Notes
 

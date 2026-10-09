@@ -10,8 +10,10 @@
 #include "Effects.hpp"
 #include "Spatial.hpp"
 
-#if defined(__aarch64__)
 #include <cstdint>
+#if !defined(__aarch64__) && (defined(__SSE__) || defined(_M_X64) || defined(_M_IX86))
+#include <xmmintrin.h>
+#define SQ_USE_MXCSR 1
 #endif
 
 namespace sq {
@@ -26,13 +28,13 @@ struct ScopedFlushDenormals {
         asm volatile("msr fpcr, %0" ::"r"(saved | (1ULL << 24)));
     }
     ~ScopedFlushDenormals() { asm volatile("msr fpcr, %0" ::"r"(saved)); }
-#elif defined(__SSE__)
+#elif defined(SQ_USE_MXCSR)
     unsigned saved;
     ScopedFlushDenormals() {
-        saved = __builtin_ia32_stmxcsr();
-        __builtin_ia32_ldmxcsr(saved | 0x8040);
+        saved = _mm_getcsr();
+        _mm_setcsr(saved | 0x8040); // FTZ | DAZ
     }
-    ~ScopedFlushDenormals() { __builtin_ia32_ldmxcsr(saved); }
+    ~ScopedFlushDenormals() { _mm_setcsr(saved); }
 #endif
 };
 
@@ -98,6 +100,28 @@ public:
         }
     }
 
+    void processInterleaved(const float* in, int inCh, float* out, int outCh, int frames) {
+        ScopedFlushDenormals ftz;
+        for (int done = 0; done < frames;) {
+            const int n = std::min(frames - done, maxFrames_);
+            const float* src = in + size_t(done) * inCh;
+            for (int i = 0; i < n; ++i) {
+                l_[i] = src[size_t(i) * inCh];
+                r_[i] = inCh > 1 ? src[size_t(i) * inCh + 1] : l_[i];
+            }
+            processBlock(l_.data(), r_.data(), n);
+            float* dst = out + size_t(done) * outCh;
+            for (int i = 0; i < n; ++i) {
+                float* frame = dst + size_t(i) * outCh;
+                frame[0] = l_[i];
+                if (outCh > 1) frame[1] = r_[i];
+                for (int c = 2; c < outCh; ++c) frame[c] = 0.0f;
+            }
+            done += n;
+        }
+    }
+
+#ifdef SQ_HAS_COREAUDIO
     void processAbl(const AudioBufferList* in, int inOffset, AudioBufferList* out) {
         if (!out || out->mNumberBuffers == 0) return;
         ScopedFlushDenormals ftz;
@@ -116,6 +140,8 @@ public:
         }
     }
 
+#endif // SQ_HAS_COREAUDIO
+
     int readAnalysis(float* dst, int n) { return analysis_.pop(dst, n); }
 
     void meters(sq_meters* m) const {
@@ -126,6 +152,7 @@ public:
     }
 
 private:
+#ifdef SQ_HAS_COREAUDIO
     // Collects input channels [inOffset, inOffset+1] across buffers into l_/r_.
     void gather(const AudioBufferList* in, int inOffset, int start, int n) {
         const float* src[2] = {nullptr, nullptr};
@@ -167,6 +194,8 @@ private:
             }
         }
     }
+
+#endif // SQ_HAS_COREAUDIO
 
     void applyParams(bool snap) {
         const sq_params& p = params_;
@@ -344,9 +373,14 @@ void sq_engine_reset(sq_engine* e) { e->impl.reset(); }
 void sq_engine_set_params(sq_engine* e, const sq_params* p) { e->impl.setParams(*p); }
 void sq_engine_set_head_yaw(sq_engine* e, float yawDeg) { e->impl.setHeadYaw(yawDeg); }
 void sq_engine_process(sq_engine* e, float* l, float* r, int frames) { e->impl.process(l, r, frames); }
+void sq_engine_process_interleaved(sq_engine* e, const float* in, int inCh, float* out, int outCh, int frames) {
+    e->impl.processInterleaved(in, inCh, out, outCh, frames);
+}
+#ifdef SQ_HAS_COREAUDIO
 void sq_engine_process_abl(sq_engine* e, const AudioBufferList* in, int inOffset, AudioBufferList* out) {
     e->impl.processAbl(in, inOffset, out);
 }
+#endif
 int sq_engine_read_analysis(sq_engine* e, float* dst, int n) { return e->impl.readAnalysis(dst, n); }
 void sq_engine_get_meters(sq_engine* e, sq_meters* out) { e->impl.meters(out); }
 

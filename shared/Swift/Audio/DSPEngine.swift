@@ -1,4 +1,3 @@
-import CoreAudio
 import Foundation
 
 /// Swift owner of the C++ engine. `handle` is safe to use from the audio thread.

@@ -8,7 +8,10 @@
 #ifndef SPATIALEQ_DSP_H
 #define SPATIALEQ_DSP_H
 
+#ifdef __APPLE__
 #include <CoreAudio/CoreAudioTypes.h>
+#define SQ_HAS_COREAUDIO 1
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -109,10 +112,18 @@ void sq_engine_set_head_yaw(sq_engine* e, float yawDeg); // + = head turned to t
 // In-place planar stereo processing.
 void sq_engine_process(sq_engine* e, float* left, float* right, int frames);
 
+// Interleaved processing: reads `inChannels`-channel input (first two channels used),
+// writes `outChannels`-channel output (channels 0/1 processed, the rest zeroed). in may equal out
+// only when inChannels == outChannels.
+void sq_engine_process_interleaved(sq_engine* e, const float* in, int inChannels, float* out, int outChannels,
+                                   int frames);
+
+#ifdef SQ_HAS_COREAUDIO
 // Reads Float32 audio from `in` (skipping the first `inChannelOffset` channels), processes it
 // and writes channels 0/1 of `out`; any further output channels are zeroed.
 void sq_engine_process_abl(sq_engine* e, const AudioBufferList* in, int inChannelOffset,
                            AudioBufferList* out);
+#endif
 
 // Pulls up to maxSamples of mono post-processing audio for visualisation. Returns count.
 int sq_engine_read_analysis(sq_engine* e, float* dst, int maxSamples);

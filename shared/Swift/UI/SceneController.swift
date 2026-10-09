@@ -1,44 +1,45 @@
 import SceneKit
-import SwiftUI
 import os
+#if os(macOS)
+import AppKit
+typealias PlatformColor = NSColor
+typealias PlatformFont = NSFont
+#else
+import UIKit
+typealias PlatformColor = UIColor
+typealias PlatformFont = UIFont
+#endif
 
-/// Interactive 3D view: a listener's head, draggable virtual sources around it, and a spectrum
-/// terrain + EQ ribbon driven by live audio analysis.
-struct SceneView3D: NSViewRepresentable {
-    @EnvironmentObject var state: AppState
-    @EnvironmentObject var tracker: HeadTracker
+/// Colours used by the 3D scene, shared by every Apple platform.
+enum SceneTheme {
+    static let background = PlatformColor(red: 0.035, green: 0.04, blue: 0.06, alpha: 1)
+    static let accent = PlatformColor(red: 0.36, green: 0.85, blue: 0.95, alpha: 1)
 
-    func makeCoordinator() -> SceneController {
-        SceneController(analyzer: state.analyzer)
-    }
+    /// One colour per virtual channel: L R C Ls Rs Lb Rb.
+    static let channelColors: [PlatformColor] = [
+        PlatformColor(red: 0.30, green: 0.70, blue: 1.00, alpha: 1),
+        PlatformColor(red: 1.00, green: 0.40, blue: 0.45, alpha: 1),
+        PlatformColor(red: 0.95, green: 0.95, blue: 0.95, alpha: 1),
+        PlatformColor(red: 0.55, green: 0.45, blue: 1.00, alpha: 1),
+        PlatformColor(red: 1.00, green: 0.55, blue: 0.85, alpha: 1),
+        PlatformColor(red: 0.35, green: 0.95, blue: 0.65, alpha: 1),
+        PlatformColor(red: 1.00, green: 0.80, blue: 0.30, alpha: 1),
+        PlatformColor(red: 0.70, green: 0.70, blue: 0.70, alpha: 1),
+    ]
 
-    func makeNSView(context: Context) -> OrbitSceneView {
-        let view = OrbitSceneView(frame: .zero)
-        let controller = context.coordinator
-        view.scene = controller.scene
-        view.pointOfView = controller.cameraNode
-        view.delegate = controller
-        view.backgroundColor = NSColor(Theme.background)
-        view.antialiasingMode = .multisampling4X
-        view.rendersContinuously = true
-        view.preferredFramesPerSecond = 60
-        view.controller = controller
-        controller.onSourceMoved = { [weak state] index, az, el, dist in
-            DispatchQueue.main.async { state?.setSource(index, azimuth: az, elevation: el, distance: dist) }
-        }
-        controller.onSpeakerSpanChanged = { [weak state] span in
-            DispatchQueue.main.async { state?.settings.speakerSpan = span }
-        }
-        return view
-    }
-
-    func updateNSView(_ view: OrbitSceneView, context: Context) {
-        context.coordinator.update(settings: state.settings, enabled: state.enabled, headYaw: tracker.yawDegrees)
+    static func rgb(_ c: PlatformColor) -> (Float, Float, Float) {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        #if os(macOS)
+        (c.usingColorSpace(.deviceRGB) ?? c).getRed(&r, green: &g, blue: &b, alpha: &a)
+        #else
+        c.getRed(&r, green: &g, blue: &b, alpha: &a)
+        #endif
+        return (Float(r), Float(g), Float(b))
     }
 }
 
-// MARK: - Controller
-
+/// Builds and animates the 3D scene: listener head, virtual sources, spectrum terrain and EQ ribbon.
+/// Platform views (macOS / iOS) own the SCNView and translate input into source moves.
 final class SceneController: NSObject, SCNSceneRendererDelegate {
     let scene = SCNScene()
     let cameraNode = SCNNode()
@@ -85,7 +86,7 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
         let lines = SCNMaterial()
         lines.lightingModel = .constant
         lines.fillMode = .lines
-        lines.diffuse.contents = NSColor(white: 1, alpha: 0.12)
+        lines.diffuse.contents = PlatformColor(white: 1, alpha: 0.12)
         terrainMaterials = (fill, lines)
         super.init()
         buildScene()
@@ -107,10 +108,10 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
     // MARK: Scene construction
 
     private func buildScene() {
-        scene.background.contents = NSColor(Theme.background)
+        scene.background.contents = SceneTheme.background
         scene.fogStartDistance = 9
         scene.fogEndDistance = 18
-        scene.fogColor = NSColor(Theme.background)
+        scene.fogColor = SceneTheme.background
 
         let camera = SCNCamera()
         camera.fieldOfView = 45
@@ -143,7 +144,7 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
         let rim = SCNNode()
         rim.light = SCNLight()
         rim.light!.type = .omni
-        rim.light!.color = NSColor(Theme.accent)
+        rim.light!.color = SceneTheme.accent
         rim.light!.intensity = 600
         rim.position = SCNVector3(0, 1.5, -3)
         scene.rootNode.addChildNode(rim)
@@ -178,7 +179,7 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
     private func buildHead() {
         let skin = SCNMaterial()
         skin.lightingModel = .physicallyBased
-        skin.diffuse.contents = NSColor(white: 0.32, alpha: 1)
+        skin.diffuse.contents = PlatformColor(white: 0.32, alpha: 1)
         skin.metalness.contents = 0.25
         skin.roughness.contents = 0.35
 
@@ -204,7 +205,7 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
         let arrow = SCNNode(geometry: SCNCone(topRadius: 0, bottomRadius: 0.08, height: 0.3))
         let glow = SCNMaterial()
         glow.lightingModel = .constant
-        glow.diffuse.contents = NSColor(Theme.accent).withAlphaComponent(0.8)
+        glow.diffuse.contents = SceneTheme.accent.withAlphaComponent(0.8)
         arrow.geometry!.materials = [glow]
         arrow.eulerAngles = SCNVector3(-CGFloat.pi / 2, 0, 0)
         arrow.position = SCNVector3(0, -0.55, -0.6)
@@ -216,7 +217,7 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
     private func buildRings() {
         let mat = SCNMaterial()
         mat.lightingModel = .constant
-        mat.diffuse.contents = NSColor(white: 1, alpha: 0.12)
+        mat.diffuse.contents = PlatformColor(white: 1, alpha: 0.12)
         for r in [1.0, 2.0, 3.0] {
             let ring = SCNNode(geometry: SCNTorus(ringRadius: CGFloat(r), pipeRadius: 0.006))
             ring.geometry!.materials = [mat]
@@ -226,7 +227,7 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
     }
 
     private func makeSourceNode(index: Int) -> SCNNode {
-        let color = Theme.channelColors[index]
+        let color = SceneTheme.channelColors[index]
         let node = SCNNode()
         node.name = "source-\(index)"
 
@@ -249,11 +250,11 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
         node.addChildNode(halo)
 
         let text = SCNText(string: "", extrusionDepth: 0)
-        text.font = NSFont.systemFont(ofSize: 1, weight: .semibold)
+        text.font = PlatformFont.systemFont(ofSize: 1, weight: .semibold)
         text.flatness = 0.05
         let tm = SCNMaterial()
         tm.lightingModel = .constant
-        tm.diffuse.contents = NSColor.white
+        tm.diffuse.contents = PlatformColor.white
         text.materials = [tm]
         let label = SCNNode(geometry: text)
         label.name = "label"
@@ -270,7 +271,7 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
         let box = SCNNode(geometry: SCNBox(width: 0.38, height: 0.6, length: 0.32, chamferRadius: 0.04))
         let m = SCNMaterial()
         m.lightingModel = .physicallyBased
-        m.diffuse.contents = NSColor(white: 0.18, alpha: 1)
+        m.diffuse.contents = PlatformColor(white: 0.18, alpha: 1)
         m.roughness.contents = 0.5
         box.geometry!.materials = [m]
         node.addChildNode(box)
@@ -278,8 +279,8 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
         let cone = SCNNode(geometry: SCNCylinder(radius: 0.11, height: 0.02))
         let cm = SCNMaterial()
         cm.lightingModel = .constant
-        cm.emission.contents = Theme.channelColors[index]
-        cm.diffuse.contents = Theme.channelColors[index]
+        cm.emission.contents = SceneTheme.channelColors[index]
+        cm.diffuse.contents = SceneTheme.channelColors[index]
         cone.geometry!.materials = [cm]
         cone.name = "cone"
         cone.eulerAngles = SCNVector3(CGFloat.pi / 2, 0, 0)
@@ -365,9 +366,9 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
             let p = Self.position(azimuth: s.sources[i].azimuth, elevation: s.sources[i].elevation, distance: s.sources[i].distance)
             verts.append(SCNVector3(0, 0, 0))
             verts.append(p)
-            let c = Theme.channelColors[i].usingColorSpace(.deviceRGB)!
-            for alpha: CGFloat in [0.0, 0.5] {
-                colors += [Float(c.redComponent), Float(c.greenComponent), Float(c.blueComponent), Float(alpha)]
+            let c = SceneTheme.rgb(SceneTheme.channelColors[i])
+            for alpha: Float in [0.0, 0.5] {
+                colors += [c.0, c.1, c.2, alpha]
             }
         }
         let indices = (0..<Int32(verts.count)).map { $0 }
@@ -471,101 +472,3 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
     }
 }
 
-// MARK: - View with orbit camera and source dragging
-
-final class OrbitSceneView: SCNView {
-    weak var controller: SceneController?
-    private enum Drag { case none, orbit, source(Int), speaker(Int) }
-    private var drag: Drag = .none
-    private var lastPoint: NSPoint = .zero
-
-    override var acceptsFirstResponder: Bool { true }
-
-    override func mouseDown(with event: NSEvent) {
-        let p = convert(event.locationInWindow, from: nil)
-        lastPoint = p
-        if event.clickCount == 2 {
-            controller?.resetCamera()
-            return
-        }
-        let hits = hitTest(p, options: [.searchMode: SCNHitTestSearchMode.all.rawValue, .ignoreHiddenNodes: true])
-        for hit in hits {
-            var node: SCNNode? = hit.node
-            while let n = node {
-                if let name = n.name, name.hasPrefix("source-"), let i = Int(name.dropFirst(7)) {
-                    drag = .source(i)
-                    controller?.draggingIndex = i
-                    return
-                }
-                if let name = n.name, name.hasPrefix("speaker-"), let i = Int(name.dropFirst(8)) {
-                    drag = .speaker(i)
-                    return
-                }
-                node = n.parent
-            }
-        }
-        drag = .orbit
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        guard let controller else { return }
-        let p = convert(event.locationInWindow, from: nil)
-        defer { lastPoint = p }
-        switch drag {
-        case .orbit:
-            var e = controller.rig.eulerAngles
-            e.y -= CGFloat(p.x - lastPoint.x) * 0.008
-            e.x = max(-1.45, min(0.2, e.x + CGFloat(p.y - lastPoint.y) * 0.008))
-            controller.rig.eulerAngles = e
-        case let .source(i):
-            let s = controller.currentSettings()
-            guard s.sources.indices.contains(i) else { return }
-            var src = s.sources[i]
-            if event.modifierFlags.contains(.option) {
-                src.elevation = max(-60, min(75, src.elevation + Double(p.y - lastPoint.y) * 0.5))
-            } else if let hit = groundPoint(p, height: SceneController.position(azimuth: src.azimuth, elevation: src.elevation, distance: src.distance).y) {
-                let horiz = Double(hypot(hit.x, hit.z))
-                let cosEl = cos(src.elevation * .pi / 180)
-                src.azimuth = atan2(Double(hit.x), Double(-hit.z)) * 180 / .pi
-                src.distance = max(0.5, min(4.0, horiz / max(cosEl, 0.2)))
-            }
-            controller.onSourceMoved?(i, src.azimuth, src.elevation, src.distance)
-        case let .speaker(i):
-            guard let hit = groundPoint(p, height: 0) else { return }
-            let az = abs(atan2(Double(hit.x), Double(-hit.z)) * 180 / .pi)
-            _ = i
-            controller.onSpeakerSpanChanged?(max(10, min(120, az * 2)))
-        case .none:
-            break
-        }
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        drag = .none
-        controller?.draggingIndex = nil
-    }
-
-    override func scrollWheel(with event: NSEvent) {
-        zoom(by: 1 + event.scrollingDeltaY * (event.hasPreciseScrollingDeltas ? 0.004 : 0.04))
-    }
-
-    override func magnify(with event: NSEvent) {
-        zoom(by: 1 - event.magnification)
-    }
-
-    private func zoom(by factor: CGFloat) {
-        guard let cam = controller?.cameraNode else { return }
-        cam.position.z = max(3.5, min(16, cam.position.z * factor))
-    }
-
-    /// Intersects the mouse ray with the horizontal plane y = height.
-    private func groundPoint(_ p: NSPoint, height: CGFloat) -> SCNVector3? {
-        let near = unprojectPoint(SCNVector3(p.x, p.y, 0))
-        let far = unprojectPoint(SCNVector3(p.x, p.y, 1))
-        let dy = far.y - near.y
-        guard abs(dy) > 1e-6 else { return nil }
-        let t = (height - near.y) / dy
-        guard t > 0 else { return nil }
-        return SCNVector3(near.x + (far.x - near.x) * t, height, near.z + (far.z - near.z) * t)
-    }
-}

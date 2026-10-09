@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 CMAKE=${CMAKE:-/opt/homebrew/bin/cmake}
-$CMAKE -S DSP -B build/dsp -DCMAKE_BUILD_TYPE=Release >/dev/null
+$CMAKE -S ../DSP -B build/dsp -DCMAKE_BUILD_TYPE=Release >/dev/null
 $CMAKE --build build/dsp >/dev/null
 ./build/dsp/dsp_tests
 xcodegen generate >/dev/null
