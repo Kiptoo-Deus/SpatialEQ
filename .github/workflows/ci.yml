@@ -68,6 +68,28 @@ jobs:
             -destination 'generic/platform=iOS Simulator' -derivedDataPath build/xcode \
             CODE_SIGNING_ALLOWED=NO build | tail -20
 
+  windows:
+    name: Windows app
+    needs: dsp-tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S windows -B build/windows -A x64
+      - name: Build
+        run: cmake --build build/windows --config Release
+      - name: Test
+        run: ctest --test-dir build/windows -C Release --output-on-failure
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Compress-Archive -Path build/windows/Release/SpatialEQ.exe -DestinationPath out/SpatialEQ-windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SpatialEQ-Windows
+          path: out/SpatialEQ-windows-x64.zip
+
   android:
     name: Android app
     needs: dsp-tests

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Kiptoo-Deus/SpatialEQ/actions/workflows/ci.yml/badge.svg)](https://github.com/Kiptoo-Deus/SpatialEQ/actions/workflows/ci.yml)
 
-**Parametric EQ and spatial audio with an interactive 3D scene, for macOS, Android and iOS.**
+**Parametric EQ and spatial audio with an interactive 3D scene, for macOS, Windows, Android and iOS.**
 
 Developed by [Savannah DSP](https://savannahdsp.com) · v1.1.0
 
@@ -25,7 +25,7 @@ Developed by [Savannah DSP](https://savannahdsp.com) · v1.1.0
 | **macOS** 14.2+ | Every app, to any output device | Core Audio process tap + private aggregate device (no driver) | Released (v1.1.0) |
 | **Android** 10+ | Every app that allows audio capture, with per-app switches | `AudioPlaybackCapture` + per-session muting | Released (v1.1.0, APK) |
 | **iOS** 17+ | Music files you play inside SpatialEQ | `AVAudioEngine` player | Released as source: build and run with Xcode (not on the App Store yet) |
-| **Windows** | Every app (planned) | Audio Processing Object (APO) | Planned |
+| **Windows** 10 (2004+) / 11 | Every app, on the device it plays on or any other | WASAPI process loopback + per-app mixer ducking → DSP → WASAPI render (or a virtual cable) | In testing |
 
 All platforms share one C++17 DSP core (`DSP/`), so sound and presets are identical everywhere.
 
@@ -39,6 +39,16 @@ All platforms share one C++17 DSP core (`DSP/`), so sound and presets are identi
 3. Launch SpatialEQ and click **Allow** when macOS asks for **System Audio Recording**.
 
 Quitting SpatialEQ returns your Mac's audio to normal immediately. To uninstall, quit it and delete it from Applications.
+
+### Windows
+1. Download **`SpatialEQ-windows-x64.zip`** from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest) (or a CI build), unzip it and run `SpatialEQ.exe`. It is a single portable file; settings live in `%APPDATA%\SpatialEQ`.
+2. That's it: the source defaults to **All apps** and the output to your Windows default device, so it works with a single pair of headphones or speakers. Pick another output from the second menu if you like.
+
+How "All apps" works: Windows has no public API that captures other apps' audio *and* silences it (the macOS process tap does both). SpatialEQ captures every app except itself (process loopback, Windows 10 2004+) and, while an app is playing, turns it down to 0.01 % in the Windows volume mixer. The mixer is a floating-point multiply, so SpatialEQ scales the captured sound back up exactly and plays the processed result; what still leaks out directly is 80 dB down. Apps get their volume back as soon as they pause, when SpatialEQ stops or quits, and on sign-out. If SpatialEQ is ever killed mid-playback, it puts the volumes right the next time it runs, and **App → Reset app volumes** does so on demand. While it runs you'll see other apps near zero in the volume mixer; that's expected.
+
+Alternatively, choose a playback device as the source: with a virtual cable such as [VB-CABLE](https://vb-audio.com/Cable/) set as the Windows default output, apps play into the cable and nobody hears them directly, without touching app volumes.
+
+Closing the window keeps SpatialEQ running in the notification area; **Quit** from its tray menu stops it.
 
 ### Android
 1. Download **`SpatialEQ-android.apk`** from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest) on your phone and open it. Allow your browser or file manager to **install unknown apps** when Android asks. Google Play is coming.
@@ -82,6 +92,11 @@ With a free Apple ID, apps installed this way stop opening after 7 days; run the
   - Controls: orbit, zoom and tilt; double-click or double-tap resets the view.
   - Performance: Metal (SceneKit) on Apple platforms, Canvas on Android.
 - **Settings and About:** "Developed by Savannah DSP", with links to [savannahdsp.com](https://savannahdsp.com) and the privacy policy.
+- **Windows:**
+  - **All apps** capture that works on a single device (no driver or virtual cable), or any playback device / virtual cable as the source. Automatic selection follows devices as they are plugged in or removed.
+  - A guard that passes audio through at its normal level whenever an app is not turned down yet (for example one that just started), so nothing is ever boosted by mistake.
+  - Notification-area icon with open, on/off and quit; Start with Windows.
+  - Native Win32 + Direct3D 11 interface (Dear ImGui) with the same layout as the Mac app; portable single `.exe` with no runtime to install.
 - **macOS:**
   - Menu bar panel with on/off, output device, mode and presets.
   - Output picker for any device ("System Default" follows macOS).
@@ -329,12 +344,21 @@ cd android && ./gradlew assembleRelease    # Android APK (needs the Android SDK 
 cmake -S DSP -B build/dsp && cmake --build build/dsp && ctest --test-dir build/dsp   # DSP tests only
 ```
 
+On Windows (Visual Studio 2022 with "Desktop development with C++", CMake 3.21+):
+
+```bash
+cmake -S windows -B build/windows
+cmake --build build/windows --config Release        # build/windows/Release/SpatialEQ.exe
+ctest --test-dir build/windows -C Release           # settings, AutoEq, format conversion, duck compensation tests
+```
+
 | Path | Contents |
 |---|---|
 | `DSP/` | C++17 real-time engine, FIFO, spectrum analyser, C API and unit tests |
 | `shared/Swift/` | Settings, presets, AutoEq, analyser, head tracking and the 3D scene shared by macOS and iOS |
 | `macos/` | macOS app (Core Audio tap routing, menu bar, Settings, installer scripts) |
 | `ios/` | iOS player app |
+| `windows/` | Windows app (WASAPI routing, app capture and mixer ducking, device handling, Dear ImGui UI) and its unit tests |
 | `android/` | Android app (Kotlin + Compose, JNI to the DSP core), Play Store assets and a test-player helper |
 | `docs/` | Screenshots, demo video and the privacy policy (served by GitHub Pages) |
 | `.github/workflows/` | CI and releases |
@@ -353,7 +377,7 @@ cmake -S DSP -B build/dsp && cmake --build build/dsp && ctest --test-dir build/d
 It also runs a real-time benchmark.
 
 **CI/CD:**
-- **Every push:** DSP tests on Linux, macOS and Windows (MSVC), plus macOS, iOS and Android builds with downloadable artifacts.
+- **Every push:** DSP tests on Linux, macOS and Windows (MSVC), plus macOS, Windows, iOS and Android builds with downloadable artifacts.
 - **Releases:** push a version tag to publish a GitHub Release with every installer attached:
 
 ```bash
@@ -366,6 +390,7 @@ git tag v1.1.0 && git push origin v1.1.0
 
 - SpatialEQ is not affiliated with Dolby Laboratories and does not use Dolby technology.
 - **macOS:** some DRM-protected playback may not be capturable by Core Audio taps.
+- **Windows:** routing adds roughly 20-30 ms of latency. Apps that open a device in exclusive mode bypass the Windows mixer and so bypass SpatialEQ. In All apps mode an app that starts playing is heard unprocessed for a fraction of a second until SpatialEQ turns it down. Windows remembers each app's mixer volume, so if SpatialEQ is force-closed during playback, an app may come back very quiet until SpatialEQ runs again (or use **Reset app volumes**).
 - **Android:** apps that forbid audio capture (some streaming apps and browsers) keep their original sound. Processing adds a little latency.
 - **iOS:** apps can't process other apps' audio, so SpatialEQ processes the music it plays itself.
 - **AirPods:** turn off Apple's own Spatial Audio in Control Centre while using SpatialEQ's virtual surround.
