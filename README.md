@@ -4,7 +4,7 @@
 
 **Parametric EQ and spatial audio with an interactive 3D scene, for macOS, Android and iOS.**
 
-Developed by [Savannah DSP](https://savannahdsp.com) · v1.0.0
+Developed by [Savannah DSP](https://savannahdsp.com) · v1.1.0
 
 ![SpatialEQ orbiting 360° while music plays](docs/spatialeq-360.gif)
 
@@ -22,9 +22,9 @@ Developed by [Savannah DSP](https://savannahdsp.com) · v1.0.0
 
 | Platform | What it processes | How | Status |
 |---|---|---|---|
-| **macOS** 14.2+ | Every app, to any output device | Core Audio process tap + private aggregate device (no driver) | Released (v1.0.0) |
-| **Android** 10+ | Every app that allows audio capture, with per-app switches | `AudioPlaybackCapture` + per-session muting | In testing |
-| **iOS** 17+ | Music files you play inside SpatialEQ | `AVAudioEngine` player | In development |
+| **macOS** 14.2+ | Every app, to any output device | Core Audio process tap + private aggregate device (no driver) | Released (v1.1.0) |
+| **Android** 10+ | Every app that allows audio capture, with per-app switches | `AudioPlaybackCapture` + per-session muting | Released (v1.1.0, APK) |
+| **iOS** 17+ | Music files you play inside SpatialEQ | `AVAudioEngine` player | Released as source: build and run with Xcode (not on the App Store yet) |
 | **Windows** | Every app (planned) | Audio Processing Object (APO) | Planned |
 
 All platforms share one C++17 DSP core (`DSP/`), so sound and presets are identical everywhere.
@@ -34,14 +34,15 @@ All platforms share one C++17 DSP core (`DSP/`), so sound and presets are identi
 ## Install
 
 ### macOS
-1. Download **`SpatialEQ-1.0.0.pkg`** (installer) or **`SpatialEQ-1.0.0.dmg`** (drag to Applications) from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest).
+1. Download **`SpatialEQ-1.1.0.pkg`** (installer) or **`SpatialEQ-1.1.0.dmg`** (drag to Applications) from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest).
 2. Open it. This release isn't notarized by Apple, so macOS blocks it the first time: go to **System Settings → Privacy & Security** and click **Open Anyway**.
 3. Launch SpatialEQ and click **Allow** when macOS asks for **System Audio Recording**.
 
 Quitting SpatialEQ returns your Mac's audio to normal immediately. To uninstall, quit it and delete it from Applications.
 
 ### Android
-1. Install the APK from the latest CI run or release. Google Play is coming.
+1. Download **`SpatialEQ-android.apk`** from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest) on your phone and open it. Allow your browser or file manager to **install unknown apps** when Android asks. Google Play is coming.
+   - This APK isn't signed with a permanent release key yet, so a future version may need you to uninstall this one first.
 2. Tap **Start** and accept Android's screen-capture prompt. Android routes "capture other apps' audio" through this prompt; SpatialEQ never captures your screen or microphone.
 3. **Optional, once:** to let SpatialEQ find every app's audio, run this from a computer with USB debugging on:
    ```bash
@@ -49,7 +50,14 @@ Quitting SpatialEQ returns your Mac's audio to normal immediately. To uninstall,
    ```
 
 ### iOS
-Build from source (see below) and install with Xcode. Import music in **Library → +**, or copy files to SpatialEQ in Finder.
+SpatialEQ isn't on the App Store yet, so you need a Mac with **Xcode 16** to build and run it on your iPhone:
+
+1. Clone this repository, then run `brew install xcodegen` and `cd ios && xcodegen generate`.
+2. Open `ios/SpatialEQ-iOS.xcodeproj`. Under **Signing & Capabilities**, choose your own team (a free Apple ID works).
+3. Connect your iPhone, select it as the run destination and press **Run** (⌘R). The first time, trust the developer on the iPhone in **Settings → General → VPN & Device Management**.
+4. Import music in **Library → +**, or copy files to SpatialEQ in Finder.
+
+With a free Apple ID, apps installed this way stop opening after 7 days; run them from Xcode again to renew.
 
 ---
 

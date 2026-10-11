@@ -24,7 +24,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.savannahdsp.spatialeq.ios
         PRODUCT_NAME: SpatialEQ
-        MARKETING_VERSION: "1.0.0"
+        MARKETING_VERSION: "1.1.0"
         CURRENT_PROJECT_VERSION: "1"
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_OBJC_BRIDGING_HEADER: App/Support/SpatialEQ-Bridging-Header.h
