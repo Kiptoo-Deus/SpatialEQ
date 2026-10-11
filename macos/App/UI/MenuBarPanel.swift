@@ -54,6 +54,7 @@ struct MenuBarPanel: View {
                     openWindow(id: "main")
                     NSApp.activate(ignoringOtherApps: true)
                 }
+                SettingsLink { Text("Settings…") }
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
             }

@@ -5,7 +5,7 @@ struct ContentView: View {
     @State private var sheet: Sheet?
 
     enum Sheet: String, Identifiable {
-        case library, eq, effects, presets
+        case library, eq, effects, presets, settings
         var id: String { rawValue }
     }
 
@@ -35,6 +35,7 @@ struct ContentView: View {
                 case .eq: EQView()
                 case .effects: EffectsView()
                 case .presets: PresetsView()
+                case .settings: SettingsView()
                 }
             }
             .environmentObject(state)
@@ -74,6 +75,12 @@ struct ContentView: View {
                     .padding(.horizontal, 12).padding(.vertical, 7)
                     .background(Color.white.opacity(0.08), in: Capsule())
             }
+            Button {
+                sheet = .settings
+            } label: {
+                Image(systemName: "gearshape").font(.system(size: 18))
+            }
+            .accessibilityLabel("Settings")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)

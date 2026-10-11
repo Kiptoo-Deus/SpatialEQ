@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -48,7 +49,7 @@ import kotlin.math.sin
 const val GRANT_COMMAND = "adb shell pm grant com.savannahdsp.spatialeq android.permission.DUMP"
 
 @Composable
-fun HomeScreen(spectrum: LiveSpectrum, onStart: () -> Unit, onStop: () -> Unit, modifier: Modifier = Modifier) {
+fun HomeScreen(spectrum: LiveSpectrum, onStart: () -> Unit, onStop: () -> Unit, onSettings: () -> Unit, modifier: Modifier = Modifier) {
     val settings by AppStore.settings.collectAsState()
     val enabled by AppStore.enabled.collectAsState()
     val status by AppStore.status.collectAsState()
@@ -71,6 +72,7 @@ fun HomeScreen(spectrum: LiveSpectrum, onStart: () -> Unit, onStop: () -> Unit, 
             Text(AppStore.allPresets.firstOrNull { it.id == presetId }?.name ?: "Custom",
                 Modifier.background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(50)).padding(horizontal = 12.dp, vertical = 6.dp),
                 fontSize = 13.sp)
+            IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, "Settings") }
         }
 
         Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp).clip(RoundedCornerShape(16.dp))) {

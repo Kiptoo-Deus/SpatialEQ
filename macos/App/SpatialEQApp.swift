@@ -36,6 +36,11 @@ struct SpatialEQApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1280, height: 820)
 
+        Settings {
+            SettingsView()
+                .environmentObject(delegate.state)
+        }
+
         MenuBarExtra {
             MenuBarPanel()
                 .environmentObject(delegate.state)

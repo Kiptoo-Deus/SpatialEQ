@@ -24,6 +24,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -40,6 +41,7 @@ import com.savannahdsp.spatialeq.ui.EqScreen
 import com.savannahdsp.spatialeq.ui.HomeScreen
 import com.savannahdsp.spatialeq.ui.Palette
 import com.savannahdsp.spatialeq.ui.PresetsScreen
+import com.savannahdsp.spatialeq.ui.SettingsScreen
 import com.savannahdsp.spatialeq.ui.SpatialEqTheme
 import com.savannahdsp.spatialeq.ui.rememberLiveSpectrum
 
@@ -91,6 +93,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             SpatialEqTheme {
                 var tab by rememberSaveable { mutableIntStateOf(0) }
+                var showSettings by rememberSaveable { mutableStateOf(false) }
                 val spectrum = rememberLiveSpectrum()
                 Scaffold(
                     containerColor = Palette.background,
@@ -104,7 +107,7 @@ class MainActivity : ComponentActivity() {
                                 "Effects" to Icons.Filled.SurroundSound, "Apps" to Icons.Filled.Apps,
                                 "Presets" to Icons.Filled.LibraryMusic,
                             ).forEachIndexed { i, (label, icon) ->
-                                NavigationBarItem(selected = tab == i, onClick = { tab = i },
+                                NavigationBarItem(selected = tab == i && !showSettings, onClick = { tab = i; showSettings = false },
                                     icon = { Icon(icon, label) }, label = { Text(label) })
                             }
                         }
@@ -112,8 +115,10 @@ class MainActivity : ComponentActivity() {
                     },
                 ) { padding ->
                     val m = Modifier.padding(padding)
-                    when (tab) {
-                        0 -> HomeScreen(spectrum, onStart = ::startProcessing, onStop = ::stopProcessing, modifier = m)
+                    if (showSettings) SettingsScreen(onBack = { showSettings = false }, modifier = m)
+                    else when (tab) {
+                        0 -> HomeScreen(spectrum, onStart = ::startProcessing, onStop = ::stopProcessing,
+                            onSettings = { showSettings = true }, modifier = m)
                         1 -> EqScreen(spectrum, m)
                         2 -> EffectsScreen(m)
                         3 -> AppsScreen(m)

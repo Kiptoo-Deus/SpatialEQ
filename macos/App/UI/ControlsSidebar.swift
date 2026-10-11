@@ -45,9 +45,13 @@ struct ControlsSidebar: View {
                     ParamSlider(title: "Output gain", value: $state.settings.outputGainDb, range: -12...12) { String(format: "%+.1f dB", $0) }
                 }
 
-                section("APP") {
-                    Toggle("Launch at login", isOn: $state.launchAtLogin)
+                HStack {
+                    SettingsLink { Label("Settings", systemImage: "gearshape") }
+                    Spacer()
+                    Link("Developed by Savannah DSP", destination: URL(string: "https://savannahdsp.com")!)
+                        .font(.caption)
                 }
+                .padding(.horizontal, 4)
             }
             .toggleStyle(.switch)
             .controlSize(.small)
