@@ -12,15 +12,16 @@ struct EQEditorView: View {
             header
             GeometryReader { geo in
                 ZStack {
-                    // Reading the timeline date makes the Canvas redraw on every display frame.
-                    TimelineView(.animation) { timeline in
+                    // Only the spectrum animates. The grid (with its text labels) is static and the
+                    // response curve changes only with the settings, so they redraw only then.
+                    Canvas { ctx, size in drawGrid(ctx, size) }
+                    // Reading the timeline date makes the Canvas redraw each tick; 30 fps is plenty
+                    // for a spectrum and keeps the main thread free.
+                    TimelineView(.animation(minimumInterval: 1.0 / 30)) { timeline in
                         let t = timeline.date.timeIntervalSinceReferenceDate
-                        Canvas { ctx, size in
-                            drawGrid(ctx, size)
-                            drawSpectrum(ctx, size, time: t)
-                            drawCurve(ctx, size)
-                        }
+                        Canvas { ctx, size in drawSpectrum(ctx, size, time: t) }
                     }
+                    Canvas { ctx, size in drawCurve(ctx, size) }
                     ForEach(Array(state.settings.bands.enumerated()), id: \.element.id) { index, band in
                         handle(index: index, band: band, size: geo.size)
                     }

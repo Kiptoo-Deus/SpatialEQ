@@ -66,7 +66,6 @@ private struct SceneHint: View {
 
 struct TopBar: View {
     @EnvironmentObject var state: AppState
-    @EnvironmentObject var meters: MeterModel
     @State private var showSaveSheet = false
     @State private var newPresetName = ""
 
@@ -96,16 +95,7 @@ struct TopBar: View {
             DevicePicker()
                 .frame(width: 230)
 
-            VStack(spacing: 3) {
-                LevelMeter(level: meters.peakL)
-                LevelMeter(level: meters.peakR)
-            }
-            .frame(width: 90)
-            if meters.limiterDb < -0.5 {
-                Text(String(format: "LIM %.0f", meters.limiterDb))
-                    .font(.system(size: 9, weight: .bold).monospacedDigit())
-                    .foregroundStyle(.orange)
-            }
+            MeterCluster()
         }
         .sheet(isPresented: $showSaveSheet) {
             VStack(alignment: .leading, spacing: 12) {
@@ -196,6 +186,26 @@ struct DevicePicker: View {
             }
         } label: {
             Image(systemName: state.activeDevice?.symbolName ?? "speaker.wave.2")
+        }
+    }
+}
+
+/// Only this view observes the meters, so their updates don't re-lay-out the whole top bar.
+private struct MeterCluster: View {
+    @EnvironmentObject var meters: MeterModel
+
+    var body: some View {
+        HStack(spacing: 14) {
+            VStack(spacing: 3) {
+                LevelMeter(level: meters.peakL)
+                LevelMeter(level: meters.peakR)
+            }
+            .frame(width: 90)
+            if meters.limiterDb < -0.5 {
+                Text(String(format: "LIM %.0f", meters.limiterDb))
+                    .font(.system(size: 9, weight: .bold).monospacedDigit())
+                    .foregroundStyle(.orange)
+            }
         }
     }
 }

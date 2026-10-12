@@ -3,7 +3,6 @@ import SwiftUI
 struct ControlsSidebar: View {
     @EnvironmentObject var state: AppState
     @EnvironmentObject var tracker: HeadTracker
-    @EnvironmentObject var meters: MeterModel
 
     var body: some View {
         ScrollView {
@@ -32,8 +31,7 @@ struct ControlsSidebar: View {
                     Toggle("Volume leveler", isOn: $state.settings.levelerEnabled)
                     if state.settings.levelerEnabled {
                         ParamSlider(title: "Target loudness", value: $state.settings.levelerTargetDb, range: -30 ... -10) { String(format: "%.0f dB", $0) }
-                        Text(String(format: "Leveler gain %+.1f dB", meters.levelerDb))
-                            .font(.caption2.monospacedDigit()).foregroundStyle(Theme.textDim)
+                        LevelerReadout()
                     }
                 }
 
@@ -113,5 +111,15 @@ struct ControlsSidebar: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// Only this small view observes the meters, so their updates don't re-lay-out the sidebar.
+private struct LevelerReadout: View {
+    @EnvironmentObject var meters: MeterModel
+
+    var body: some View {
+        Text(String(format: "Leveler gain %+.1f dB", meters.levelerDb))
+            .font(.caption2.monospacedDigit()).foregroundStyle(Theme.textDim)
     }
 }

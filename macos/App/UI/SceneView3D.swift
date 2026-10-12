@@ -46,6 +46,27 @@ final class OrbitSceneView: SCNView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    private var occlusionObserver: NSObjectProtocol?
+
+    /// Render only while the window is on screen; a hidden or covered window otherwise keeps
+    /// drawing 60 frames a second for nobody.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let o = occlusionObserver { NotificationCenter.default.removeObserver(o) }
+        occlusionObserver = nil
+        guard let window else { return }
+        occlusionObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main
+        ) { [weak self] _ in self?.updateRendering() }
+        updateRendering()
+    }
+
+    private func updateRendering() {
+        let visible = window?.occlusionState.contains(.visible) ?? false
+        rendersContinuously = visible
+        isPlaying = visible
+    }
+
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
         lastPoint = p

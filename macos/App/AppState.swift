@@ -5,11 +5,24 @@ import ServiceManagement
 import UniformTypeIdentifiers
 
 /// Live meter values, kept separate from AppState so 15 Hz updates don't redraw every view.
+/// Every assignment to a @Published property re-renders all observing views, so values are
+/// rounded to what the meters can show and published only when that changes.
 final class MeterModel: ObservableObject {
-    @Published var peakL: Float = 0
-    @Published var peakR: Float = 0
-    @Published var limiterDb: Float = 0
-    @Published var levelerDb: Float = 0
+    @Published private(set) var peakL: Float = 0
+    @Published private(set) var peakR: Float = 0
+    @Published private(set) var limiterDb: Float = 0
+    @Published private(set) var levelerDb: Float = 0
+
+    func update(_ m: sq_meters) {
+        func set(_ value: Float, step: Float, _ keyPath: ReferenceWritableKeyPath<MeterModel, Float>) {
+            let q = (value / step).rounded() * step
+            if self[keyPath: keyPath] != q { self[keyPath: keyPath] = q }
+        }
+        set(m.peakL, step: 0.01, \.peakL)
+        set(m.peakR, step: 0.01, \.peakR)
+        set(m.limiterReductionDb, step: 0.5, \.limiterDb)
+        set(m.levelerGainDb, step: 0.1, \.levelerDb)
+    }
 }
 
 /// Owns the engine, routing, devices and settings; the single source of truth for the UI.
@@ -267,11 +280,7 @@ final class AppState: ObservableObject {
     private func startMeters() {
         meterTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 15.0, repeats: true) { [weak self] _ in
             guard let self else { return }
-            let m = self.dsp.meters
-            self.meters.peakL = m.peakL
-            self.meters.peakR = m.peakR
-            self.meters.limiterDb = m.limiterReductionDb
-            self.meters.levelerDb = m.levelerGainDb
+            self.meters.update(self.dsp.meters)
         }
     }
 }
