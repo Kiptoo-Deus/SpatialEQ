@@ -4,7 +4,7 @@
 
 **Parametric EQ and spatial audio with an interactive 3D scene, for macOS, Windows, Android and iOS.**
 
-Developed by [Savannah DSP](https://savannahdsp.com) · v1.1.0
+Developed by [Savannah DSP](https://savannahdsp.com) · v1.1.1
 
 ![SpatialEQ orbiting 360° while music plays](docs/spatialeq-360.gif)
 
@@ -22,8 +22,8 @@ Developed by [Savannah DSP](https://savannahdsp.com) · v1.1.0
 
 | Platform | What it processes | How | Status |
 |---|---|---|---|
-| **macOS** 14.2+ | Every app, to any output device | Core Audio process tap + private aggregate device (no driver) | Released (v1.1.0) |
-| **Android** 10+ | Every app that allows audio capture, with per-app switches | `AudioPlaybackCapture` + per-session muting | Released (v1.1.0, APK) |
+| **macOS** 14.2+ | Every app, to any output device | Core Audio process tap + private aggregate device (no driver) | Released (v1.1.1) |
+| **Android** 10+ | Every app that allows audio capture, with per-app switches | `AudioPlaybackCapture` + per-session muting | Released (v1.1.1, APK) |
 | **iOS** 17+ | Music files you play inside SpatialEQ | `AVAudioEngine` player | Released as source: build and run with Xcode (not on the App Store yet) |
 | **Windows** 10 (2004+) / 11 | Every app, on the device it plays on or any other | WASAPI process loopback + per-app mixer ducking → DSP → WASAPI render (or a virtual cable) | In testing |
 
@@ -34,7 +34,7 @@ All platforms share one C++17 DSP core (`DSP/`), so sound and presets are identi
 ## Install
 
 ### macOS
-1. Download **`SpatialEQ-1.1.0.pkg`** (installer) or **`SpatialEQ-1.1.0.dmg`** (drag to Applications) from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest).
+1. Download **`SpatialEQ-1.1.1.pkg`** (installer) or **`SpatialEQ-1.1.1.dmg`** (drag to Applications) from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest).
 2. Open it. This release isn't notarized by Apple, so macOS blocks it the first time: go to **System Settings → Privacy & Security** and click **Open Anyway**.
 3. Launch SpatialEQ and click **Allow** when macOS asks for **System Audio Recording**.
 
