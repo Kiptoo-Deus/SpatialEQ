@@ -3,6 +3,7 @@ package com.savannahdsp.spatialeq
 import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
+import android.media.projection.MediaProjectionConfig
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
@@ -77,7 +78,13 @@ class MainActivity : ComponentActivity() {
     fun stopProcessing() = CaptureService.stop(this)
 
     private fun requestProjection() {
-        projectionRequest.launch(getSystemService(MediaProjectionManager::class.java).createScreenCaptureIntent())
+        val mpm = getSystemService(MediaProjectionManager::class.java)
+        // Android 14+ defaults the prompt to "Share one app", which would capture only that app's
+        // audio. System-wide processing needs the whole display, so don't offer the choice.
+        projectionRequest.launch(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+                mpm.createScreenCaptureIntent(MediaProjectionConfig.createConfigForDefaultDisplay())
+            else mpm.createScreenCaptureIntent())
     }
 
     override fun onResume() {

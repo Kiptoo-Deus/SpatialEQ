@@ -36,6 +36,10 @@ import kotlinx.coroutines.flow.update
  * System-wide processing:
  *   other apps --(AudioPlaybackCapture)--> AudioRecord --> DSP engine --> AudioTrack --> output
  * while [SessionMuter] silences the originals so only the processed copy is heard.
+ *
+ * Every app is heard exactly once: an app's original is silenced only while the system confirms
+ * it is being captured, and an app that is captured but can't be silenced is dropped from the
+ * capture so it plays untouched.
  */
 class CaptureService : Service() {
     private var projection: MediaProjection? = null
@@ -45,6 +49,9 @@ class CaptureService : Service() {
     private lateinit var discovery: SessionDiscovery
     private val handler = Handler(Looper.getMainLooper())
     private val announcedSessions = mutableMapOf<Int, String>() // from effect-control broadcasts
+    @Volatile private var captureFilter = CaptureFilter(emptySet(), emptySet())
+    private val blockedUids = mutableSetOf<Int>() // captured apps we couldn't silence (main thread)
+    @Volatile private var pendingFailures = emptySet<Int>() // sessions whose mute failed last round
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -78,11 +85,18 @@ class CaptureService : Service() {
     private fun startProcessing(mp: MediaProjection) {
         val am = getSystemService(AudioManager::class.java)
         val sampleRate = am.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)?.toIntOrNull() ?: 48000
-        val framesPerBuffer = 480 // 10 ms at 48 kHz
+        val framesPerBuffer = 512
+        // The capture side (remote submix) delivers audio in bursts of ~1024 frames, and Bluetooth
+        // output pulls in large chunks too, so the path needs real headroom between them: a small
+        // low-latency buffer runs dry constantly, which is heard as stutter and hangs.
+        val bufferFrames = maxOf(4096, sampleRate / 10) // ~100 ms
+        val headroomFrames = 2048                         // ~43 ms kept queued in the output
         val engine = AppStore.engine
 
-        val record0 = buildRecord(mp, sampleRate, framesPerBuffer, AppStore.excludedPackages.value)
+        // Probe that capture is permitted before starting.
+        buildRecord(mp, sampleRate, bufferFrames, CaptureFilter(null, emptySet()))?.release()
             ?: run { setStatus("Microphone permission is required to capture other apps' audio"); stopSelf(); return }
+        captureFilter = initialFilter()
 
         val trackMin = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_FLOAT)
         val track = AudioTrack.Builder()
@@ -97,9 +111,8 @@ class CaptureService : Service() {
                 .setSampleRate(sampleRate)
                 .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
                 .build())
-            .setBufferSizeInBytes(maxOf(trackMin, framesPerBuffer * 8) * 2)
+            .setBufferSizeInBytes(maxOf(trackMin, bufferFrames * 8))
             .setTransferMode(AudioTrack.MODE_STREAM)
-            .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
             .build()
 
         engine.prepare(sampleRate, 4096)
@@ -109,29 +122,34 @@ class CaptureService : Service() {
         worker = Thread({
             Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
             val buffer = FloatArray(framesPerBuffer * 2)
-            var record = record0
-            var excluded = AppStore.excludedPackages.value
-            record.startRecording()
+            val silence = FloatArray(headroomFrames * 2)
+            var record: AudioRecord? = null
+            var filter: CaptureFilter? = null
+            var underruns = 0
+            track.write(silence, 0, silence.size, AudioTrack.WRITE_BLOCKING) // start with headroom
             track.play()
             while (running) {
-                // Apps switched off in the Apps screen must not be captured either, otherwise they
-                // would be heard twice (original + processed). The capture filter is fixed per
-                // AudioRecord, so rebuild it when the selection changes.
-                val wanted = AppStore.excludedPackages.value
-                if (wanted != excluded) {
-                    buildRecord(mp, sampleRate, framesPerBuffer, wanted)?.let { fresh ->
-                        runCatching { record.stop() }; record.release()
-                        record = fresh
-                        record.startRecording()
-                    }
-                    excluded = wanted
+                // The capture filter is fixed per AudioRecord, so rebuild it when it changes.
+                val wanted = captureFilter
+                if (wanted != filter) {
+                    record?.let { runCatching { it.stop() }; it.release() }
+                    record = if (wanted.matchUids?.isEmpty() == true) null
+                        else buildRecord(mp, sampleRate, bufferFrames, wanted)?.also { it.startRecording() }
+                    filter = wanted
                 }
-                val read = record.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
+                val read = record?.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
+                    ?: buffer.size.also { buffer.fill(0f) } // nothing to capture: let effect tails ring out
                 if (read <= 0) continue
                 engine.process(buffer, read / 2)
-                track.write(buffer, 0, read, AudioTrack.WRITE_BLOCKING)
+                // If the output ran dry anyway (capture and output clocks drift), rebuild the headroom.
+                val now = track.underrunCount
+                if (now != underruns) {
+                    underruns = now
+                    track.write(silence, 0, silence.size, AudioTrack.WRITE_NON_BLOCKING)
+                }
+                track.write(buffer, 0, read, AudioTrack.WRITE_BLOCKING) // paces the loop in real time
             }
-            runCatching { record.stop() }; record.release()
+            record?.let { runCatching { it.stop() }; it.release() }
             runCatching { track.stop() }; track.release()
         }, "SpatialEQ-audio").also { it.start() }
 
@@ -139,14 +157,27 @@ class CaptureService : Service() {
         handler.post(sessionPoller)
     }
 
-    /** Capture of every app's media/game audio except ours and the ones the user switched off. */
-    private fun buildRecord(mp: MediaProjection, sampleRate: Int, framesPerBuffer: Int, excluded: Set<String>): AudioRecord? {
+    /**
+     * What the recorder captures. [matchUids] null: every app's media except [excludeUids] (used
+     * with session access, where we can see exactly what is captured). Otherwise only those apps.
+     */
+    private data class CaptureFilter(val matchUids: Set<Int>?, val excludeUids: Set<Int>)
+
+    private fun initialFilter() =
+        if (discovery.hasDumpPermission) CaptureFilter(null, uidsOf(AppStore.excludedPackages.value))
+        else CaptureFilter(emptySet(), emptySet())
+
+    private fun uidsOf(packages: Collection<String>): Set<Int> =
+        packages.mapNotNull { runCatching { packageManager.getPackageUid(it, 0) }.getOrNull() }.toSet()
+
+    private fun buildRecord(mp: MediaProjection, sampleRate: Int, bufferFrames: Int, filter: CaptureFilter): AudioRecord? {
         val config = AudioPlaybackCaptureConfiguration.Builder(mp)
             .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
             .addMatchingUsage(AudioAttributes.USAGE_GAME)
             .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
-            .excludeUid(Process.myUid())
-        excluded.mapNotNull { runCatching { packageManager.getPackageUid(it, 0) }.getOrNull() }.distinct().forEach(config::excludeUid)
+        val match = filter.matchUids
+        if (match == null) (filter.excludeUids + Process.myUid()).forEach(config::excludeUid)
+        else match.forEach(config::addMatchingUid)
         val format = AudioFormat.Builder()
             .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
             .setSampleRate(sampleRate)
@@ -156,7 +187,7 @@ class CaptureService : Service() {
         return try {
             AudioRecord.Builder()
                 .setAudioFormat(format)
-                .setBufferSizeInBytes(maxOf(min, framesPerBuffer * 8) * 2)
+                .setBufferSizeInBytes(maxOf(min, bufferFrames * 8))
                 .setAudioPlaybackCaptureConfig(config.build())
                 .build()
         } catch (e: SecurityException) {
@@ -164,34 +195,65 @@ class CaptureService : Service() {
         }
     }
 
-    /** Every second: find playing apps, mute the ones we capture, report the rest. */
+    /**
+     * Twice a second: mute exactly the players that are being captured, so every app is heard
+     * once. With session access the system tells us which players are captured; a captured app
+     * that can't be silenced (another app holds its effect, ...) is dropped from the capture
+     * instead, so it plays unprocessed rather than doubled. Without session access, only players
+     * that announce their session are muted, and only those apps are captured.
+     */
     private val sessionPoller = object : Runnable {
         override fun run() {
             if (!running) return
             Thread {
                 val excluded = AppStore.excludedPackages.value
+                val excludedUids = uidsOf(excluded)
                 val sessions = discovery.scan()
-                val toMute = sessions.filter { it.captureAllowed && it.packageName !in excluded }.map { it.sessionId }.toMutableSet()
-                synchronized(announcedSessions) {
-                    val denied = sessions.filter { !it.captureAllowed }.map { it.packageName }.toSet()
-                    announcedSessions.filterValues {
-                        it !in excluded && it !in denied && discovery.appTargetsCaptureByDefault(it)
-                    }.keys.forEach(toMute::add)
+                // Only worth the (large) flinger dump when a mute failed last time.
+                val orphans = if (pendingFailures.isNotEmpty()) discovery.orphanedDynamicsSessions() else emptySet()
+                val announced = synchronized(announcedSessions) {
+                    announcedSessions.filterValues { it !in excluded && discovery.appTargetsCaptureByDefault(it) }
+                        .mapNotNull { (session, pkg) ->
+                            runCatching { packageManager.getPackageUid(pkg, 0) }.getOrNull()?.let { session to (it to pkg) }
+                        }.toMap()
                 }
                 handler.post {
                     if (!running) return@post
-                    muter.sync(toMute)
-                    val processed = (sessions.filter { it.sessionId in muter.mutedSessions }.map { it.packageName } +
-                        synchronized(announcedSessions) { announcedSessions.filterKeys { it in muter.mutedSessions }.values })
-                        .distinct().map { AppRef(it, discovery.label(it)) }
-                    val protected = sessions.filter { !it.captureAllowed }.map { it.packageName }.distinct()
-                        .map { AppRef(it, discovery.label(it)) }
-                    AppStore.status.update {
-                        it.copy(processedApps = processed, protectedApps = protected, sessionAccess = discovery.hasDumpPermission)
+                    if (discovery.hasDumpPermission) {
+                        val toMute = sessions.filter { it.captured && it.uid !in excludedUids && it.uid !in blockedUids }
+                        muter.sync(toMute.map { it.sessionId }.toSet())
+                        val silenced = muter.silencedSessions + orphans
+                        // A captured player we failed to silence is heard twice. Give it one more
+                        // round (the effect may just have been taken), then stop capturing that app.
+                        val failed = toMute.filter { it.sessionId !in silenced }
+                        failed.filter { it.sessionId in pendingFailures }.forEach { blockedUids += it.uid }
+                        pendingFailures = failed.map { it.sessionId }.toSet()
+                        captureFilter = CaptureFilter(null, excludedUids + blockedUids)
+                        val processed = toMute.filter { it.sessionId in silenced }.map { it.packageName }
+                        val unprocessed = sessions.filter { it.active && it.uid !in excludedUids && it.packageName !in processed }
+                            .map { it.packageName }
+                        publish(processed, unprocessed)
+                    } else {
+                        muter.sync(announced.keys)
+                        val silenced = muter.silencedSessions
+                        // Capture an app only when all of its sessions are silenced.
+                        val uids = announced.entries.groupBy({ it.value.first }, { it.key })
+                            .filterValues { s -> s.all { it in silenced } }.keys
+                        captureFilter = CaptureFilter(uids, emptySet())
+                        publish(announced.values.filter { it.first in uids }.map { it.second }, emptyList())
                     }
                 }
             }.start()
-            handler.postDelayed(this, 1000)
+            handler.postDelayed(this, 500)
+        }
+    }
+
+    private fun publish(processed: List<String>, unprocessed: List<String>) {
+        AppStore.status.update {
+            it.copy(
+                processedApps = processed.distinct().map { p -> AppRef(p, discovery.label(p)) },
+                protectedApps = unprocessed.distinct().map { p -> AppRef(p, discovery.label(p)) },
+                sessionAccess = discovery.hasDumpPermission)
         }
     }
 

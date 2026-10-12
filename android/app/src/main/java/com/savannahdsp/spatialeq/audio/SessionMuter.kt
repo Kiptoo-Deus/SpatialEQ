@@ -16,6 +16,13 @@ class SessionMuter {
 
     val mutedSessions: Set<Int> get() = effects.keys
 
+    /**
+     * Sessions that are silent right now: we hold the effect and it is enabled. Another app can
+     * take an effect over, and until we get it back that session's original output is audible.
+     */
+    val silencedSessions: Set<Int>
+        get() = effects.filterValues { runCatching { it.hasControl() && it.enabled }.getOrDefault(false) }.keys
+
     fun mute(sessionId: Int): Boolean {
         if (sessionId in effects) return true
         return try {
