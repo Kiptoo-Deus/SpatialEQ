@@ -199,6 +199,8 @@
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
 
+    let dirty = true; // something other than audio changed (camera, size): render the next frame
+
     function resize() {
       const w = host.clientWidth, h = host.clientHeight;
       if (!w || !h) return;
@@ -214,7 +216,6 @@
     resize();
 
     let mode = "none", last = [0, 0], dragSource = -1; // pointer interaction state
-    let dirty = true; // something other than audio changed (camera, size): render the next frame
 
     // ---- per-frame update
     function update() {
