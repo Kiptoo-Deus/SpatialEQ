@@ -7,7 +7,7 @@
   import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
   import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
   import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-  import { ui, edit, spectrum, BANDS, HISTORY } from "./bridge.svelte.js";
+  import { ui, edit, spectrum, stats, BANDS, HISTORY } from "./bridge.svelte.js";
   import { P, SRC, srcId, CHANNELS, UPMIX, eqResponse } from "./params.js";
 
   let host;
@@ -289,8 +289,10 @@
       const changed = dirty || spectrum.frame !== lastFrame || spectrum.paramsVersion !== lastParams;
       if (!changed || ms - lastRender < 15) return;
       dirty = false; lastFrame = spectrum.frame; lastParams = spectrum.paramsVersion; lastRender = ms;
+      const t0 = performance.now();
       update();
       composer.render();
+      stats.scene.n++; stats.scene.ms += performance.now() - t0;
     };
     loop();
 

@@ -27,7 +27,16 @@ export const spectrum = {
   frame: 0,         // increments on every new spectrum frame
   paramsVersion: 0, // increments whenever any parameter changes
 };
+// Render cost, read by the plug-in when SPATIALEQ_UI_LOG is set: frames drawn and milliseconds spent.
+export const stats = { scene: { n: 0, ms: 0 }, eq: { n: 0, ms: 0 }, frames: 0 };
+if (typeof window !== "undefined") window.sqStats = () => {
+  const s = JSON.stringify(stats);
+  stats.scene = { n: 0, ms: 0 }; stats.eq = { n: 0, ms: 0 }; stats.frames = 0;
+  return s;
+};
+
 function pushFrame(bands) {
+  stats.frames++;
   spectrum.bands.set(bands);
   spectrum.head = (spectrum.head + HISTORY - 1) % HISTORY;
   spectrum.history.set(bands, spectrum.head * BANDS);

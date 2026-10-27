@@ -12,7 +12,9 @@
 #include "choc/gui/choc_WebView.h"
 #include "choc/text/choc_JSON.h"
 
+#include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -50,6 +52,26 @@ struct WebEditor::Impl {
     sq_spectrum* spectrum = sq_spectrum_create(kSpectrumBands);
     bool ready = false;
     std::vector<double> sent; // normalized values last sent to the UI
+    int width = WebEditor::kWidth, height = WebEditor::kHeight;
+    int ticks = 0;
+
+    // Watchdog: if the page stops answering (its WebKit / WebView2 process died), load it again.
+    using Clock = std::chrono::steady_clock;
+    Clock::time_point lastReply = Clock::now();
+    std::shared_ptr<int> generation = std::make_shared<int>(0); // guards replies from a replaced web view
+
+    // Optional diagnostics: SPATIALEQ_UI_LOG=/path/to/file appends the UI's frame rate and render cost.
+    std::string logPath = [] {
+        const char* p = std::getenv("SPATIALEQ_UI_LOG");
+        return std::string(p ? p : "");
+    }();
+    void log(const std::string& line) {
+        if (logPath.empty()) return;
+        if (FILE* f = std::fopen(logPath.c_str(), "a")) {
+            std::fprintf(f, "%s\n", line.c_str());
+            std::fclose(f);
+        }
+    }
 
     explicit Impl(SpatialEQPlugin* p) : plugin(p) {}
     ~Impl() {
@@ -58,8 +80,25 @@ struct WebEditor::Impl {
         sq_spectrum_destroy(spectrum);
     }
 
-    void create(void* parentView, int width, int height) {
+    void create(void* parentView, int w, int h) {
         parent = parentView;
+        width = w;
+        height = h;
+        createWebView();
+        timer = choc::messageloop::Timer(33, [this] {
+            tick();
+            return true;
+        });
+    }
+
+    void createWebView() {
+        if (webview) removeChildView(webview->getViewHandle());
+        webview.reset();
+        ready = false;
+        sent.clear();
+        lastReply = Clock::now();
+        ++*generation;
+
         choc::ui::WebView::Options options;
         options.acceptsFirstMouseClick = true;
 #ifndef NDEBUG
@@ -82,20 +121,40 @@ struct WebEditor::Impl {
             if (name == "ready") {
                 ready = true;
                 sent.clear(); // a (re)loaded page needs every value
+                log("page connected");
             }
             plugin->command(name, argNumber(args, 1), parent);
             return {};
         });
 
-        embedChildView(parentView, webview->getViewHandle(), width, height);
-        timer = choc::messageloop::Timer(33, [this] {
-            tick();
-            return true;
+        embedChildView(parent, webview->getViewHandle(), width, height);
+        log("web view created");
+    }
+
+    void ping() {
+        std::weak_ptr<int> gen = generation;
+        const int expected = *generation;
+        webview->evaluateJavascript(logPath.empty() ? "1" : "window.sqStats ? sqStats() : ''",
+                                    [this, gen, expected](const std::string& error, const choc::value::ValueView& v) {
+            const auto g = gen.lock();
+            if (!g || *g != expected) return;
+            lastReply = Clock::now();
+            if (!error.empty()) log("js error: " + error);
+            else if (v.isString()) log(std::string(v.getString()));
         });
     }
 
     void tick() {
-        if (!webview || !ready) return;
+        if (!webview) return;
+        if (++ticks % 60 == 0) { // every 2 s
+            if (ready && Clock::now() - lastReply > std::chrono::seconds(6)) {
+                log("page not responding, reloading");
+                createWebView();
+                return;
+            }
+            ping();
+        }
+        if (!ready) return;
         if (plugin->infoChanged.exchange(false)) {
             const double fs = plugin->sampleRate();
             const double latencyMs = 1000.0 * plugin->getLatencySamples() / fs;
@@ -154,6 +213,7 @@ tresult PLUGIN_API WebEditor::isPlatformTypeSupported(FIDString type) {
 tresult PLUGIN_API WebEditor::attached(void* parent, FIDString type) {
     if (isPlatformTypeSupported(type) != kResultTrue) return kResultFalse;
     impl_ = std::make_unique<Impl>(plugin_);
+    impl_->log("attached " + std::to_string(rect.getWidth()) + "x" + std::to_string(rect.getHeight()));
     impl_->create(parent, rect.getWidth(), rect.getHeight());
     plugin_->paramsChanged = true;
     plugin_->infoChanged = true;
@@ -161,6 +221,7 @@ tresult PLUGIN_API WebEditor::attached(void* parent, FIDString type) {
 }
 
 tresult PLUGIN_API WebEditor::removed() {
+    if (impl_) impl_->log("removed");
     if (impl_ && impl_->webview) removeChildView(impl_->webview->getViewHandle());
     impl_.reset();
     return CPluginView::removed();
@@ -169,7 +230,11 @@ tresult PLUGIN_API WebEditor::removed() {
 tresult PLUGIN_API WebEditor::onSize(ViewRect* newSize) {
     if (newSize) {
         rect = *newSize;
-        if (impl_ && impl_->webview) resizeChildView(impl_->webview->getViewHandle(), rect.getWidth(), rect.getHeight());
+        if (impl_ && impl_->webview) {
+            impl_->width = rect.getWidth();
+            impl_->height = rect.getHeight();
+            resizeChildView(impl_->webview->getViewHandle(), rect.getWidth(), rect.getHeight());
+        }
     }
     return kResultOk;
 }

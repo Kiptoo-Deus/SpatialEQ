@@ -5,7 +5,7 @@
   import Switch from "./Switch.svelte";
   import Slider from "./Slider.svelte";
   import Menu from "./Menu.svelte";
-  import { ui, edit, command, spectrum } from "./bridge.svelte.js";
+  import { ui, edit, command, spectrum, stats } from "./bridge.svelte.js";
   import { P, BAND, BAND_TYPES, MAX_BANDS, bandId, hasGain, eqResponse } from "./params.js";
 
   const MIN_F = 20, MAX_F = 20000, RANGE = 18;
@@ -111,7 +111,9 @@
       raf = requestAnimationFrame(loop);
       if (ms - last < 33) return;
       last = ms;
+      const t0 = performance.now();
       drawSpectrum(ms / 1000);
+      stats.eq.n++; stats.eq.ms += performance.now() - t0;
     };
     raf = requestAnimationFrame(loop);
     return () => { ro.disconnect(); cancelAnimationFrame(raf); };
