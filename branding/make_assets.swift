@@ -95,6 +95,34 @@ func write(_ image: CGImage, _ url: URL, _ type: UTType = .png) {
     guard CGImageDestinationFinalize(dest) else { fatalError("cannot write \(url.path)") }
 }
 
+/// A classic 24-bit BMP: rows stored bottom-up with a positive height. ImageIO writes top-down BMPs
+/// (negative height), which Inno Setup draws upside down.
+func writeBMP(_ image: CGImage, _ url: URL) {
+    let w = image.width, h = image.height
+    let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: sRGB,
+                        bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+    ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+    let px = ctx.data!.assumingMemoryBound(to: UInt8.self) // row 0 is the top of the image
+    let rowBytes = (w * 3 + 3) & ~3
+    var data = Data()
+    func le16(_ v: Int) { withUnsafeBytes(of: UInt16(v).littleEndian) { data.append(contentsOf: $0) } }
+    func le32(_ v: Int) { withUnsafeBytes(of: UInt32(v).littleEndian) { data.append(contentsOf: $0) } }
+    data.append(contentsOf: [0x42, 0x4D]); le32(54 + rowBytes * h); le32(0); le32(54) // file header
+    le32(40); le32(w); le32(h); le16(1); le16(24); le32(0); le32(rowBytes * h)       // BITMAPINFOHEADER
+    le32(2835); le32(2835); le32(0); le32(0)                                          // 72 dpi, no palette
+    withExtendedLifetime(ctx) {
+        for y in (0..<h).reversed() { // bottom row first
+            var row = [UInt8](repeating: 0, count: rowBytes)
+            for x in 0..<w {
+                let i = (y * w + x) * 4
+                row[x * 3] = px[i + 2]; row[x * 3 + 1] = px[i + 1]; row[x * 3 + 2] = px[i] // BGR
+            }
+            data.append(contentsOf: row)
+        }
+    }
+    try! data.write(to: url)
+}
+
 func color(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1) -> CGColor {
     CGColor(colorSpace: sRGB, components: [r, g, b, a])!
 }
@@ -241,14 +269,14 @@ write(dmgBackground(scale: 2), installerDir.appendingPathComponent("dmg-backgrou
 for (percent, factor) in [(100, 1.0), (125, 1.25), (150, 1.5), (175, 1.75), (200, 2.0)] {
     let w = Int((164 * factor).rounded()), h = Int((314 * factor).rounded())
     let full = CGRect(x: 0, y: 0, width: w, height: h)
-    write(boxOnWhite(width: w, height: h, boxRect: full.insetBy(dx: CGFloat(w) * 0.04, dy: CGFloat(h) * 0.1)),
-          installerDir.appendingPathComponent("wizard-\(percent).bmp"), .bmp)
+    writeBMP(boxOnWhite(width: w, height: h, boxRect: full.insetBy(dx: CGFloat(w) * 0.04, dy: CGFloat(h) * 0.1)),
+          installerDir.appendingPathComponent("wizard-\(percent).bmp"))
     let s = Int((55 * factor).rounded())
     let small = canvas(s, s, opaque: true)
     small.setFillColor(color(1, 1, 1))
     small.fill(CGRect(x: 0, y: 0, width: s, height: s))
     small.draw(icon(size: s, inset: 0.02, radius: 0.18), in: CGRect(x: 0, y: 0, width: s, height: s))
-    write(small.makeImage()!, installerDir.appendingPathComponent("wizard-small-\(percent).bmp"), .bmp)
+    writeBMP(small.makeImage()!, installerDir.appendingPathComponent("wizard-small-\(percent).bmp"))
 }
 
 print("Wrote icons to \(iconDir.path) and installer images to \(installerDir.path)")

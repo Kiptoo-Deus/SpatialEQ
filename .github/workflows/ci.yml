@@ -120,6 +120,19 @@ jobs:
             "/DBundle=$PWD\build\plugin\VST3\Release\SpatialEQ.vst3" `
             "/DOutDir=$PWD\out" windows\installer\SpatialEQ-Windows.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Screenshot the setup wizard
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem out\SpatialEQ-*-windows-x64-setup.exe | Select-Object -First 1
+          $p = Start-Process $setup.FullName -PassThru
+          Start-Sleep -Seconds 8
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save("$PWD\out\setup-wizard.png")
+          Get-Process | Where-Object { $_.Name -like "SpatialEQ-*" -or $_.Name -like "*.tmp" } | Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 2
       - name: Install it and check the app and the VST3
         shell: pwsh
         run: |
@@ -156,7 +169,9 @@ jobs:
         if: always()
         with:
           name: SpatialEQ-Windows-screenshot
-          path: out/screenshot.png
+          path: |
+            out/screenshot.png
+            out/setup-wizard.png
           if-no-files-found: ignore
 
   android:
