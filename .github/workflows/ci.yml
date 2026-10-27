@@ -96,11 +96,13 @@ jobs:
           npm ci
           npm run build
       - name: Build and test the app
+        shell: bash # stops at the first failing command (PowerShell would carry on)
         run: |
           cmake -S windows -B build/windows -A x64
           cmake --build build/windows --config Release
           ctest --test-dir build/windows -C Release --output-on-failure
       - name: Build the VST3 (runs the Steinberg validator)
+        shell: bash
         run: |
           cmake -S plugin -B build/plugin -A x64
           cmake --build build/plugin --config Release --target SpatialEQ validator

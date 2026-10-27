@@ -11,6 +11,7 @@
 #include <windows.h>
 
 #include <dwmapi.h>
+#include <objbase.h>
 #include <shellapi.h>
 
 #include <algorithm>
