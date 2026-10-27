@@ -12,7 +12,7 @@ import { defaultParams, PRESETS } from "./params.js";
 export const ui = $state({
   p: defaultParams(),
   level: 0, peakL: 0, peakR: 0, lim: 0, lev: 0,
-  sampleRate: 48000, latencyMs: 1.5, version: "1.1.1", preset: "Flat", edited: false,
+  sampleRate: 48000, latencyMs: 1.5, version: "1.2.0", preset: "Flat", edited: false,
   selectedBand: -1,
   connected: false,
 });

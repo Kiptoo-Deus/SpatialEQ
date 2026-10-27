@@ -1,7 +1,7 @@
 ; SpatialEQ for Windows: setup program for the app.
-;   iscc /DVersion=1.1.1 /DAppExe=path\to\SpatialEQ.exe /DOutDir=out windows\installer\SpatialEQ.iss
+;   iscc /DVersion=1.2.0 /DAppExe=path\to\SpatialEQ.exe /DOutDir=out windows\installer\SpatialEQ.iss
 #ifndef Version
-  #define Version "1.1.1"
+  #define Version "1.2.0"
 #endif
 #ifndef AppExe
   #define AppExe "..\..\build\windows\Release\SpatialEQ.exe"

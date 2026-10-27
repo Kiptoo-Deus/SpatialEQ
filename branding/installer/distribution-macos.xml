@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The main macOS installer: the SpatialEQ app plus the VST3 and Audio Unit plug-ins, each selectable
+     under Customize. VERSION is replaced by macos/scripts/package_all.sh. -->
+<installer-gui-script minSpecVersion="2">
+    <title>SpatialEQ</title>
+    <organization>com.savannahdsp</organization>
+    <background file="pkg-background.tiff" alignment="bottomleft" scaling="none"/>
+    <background-darkAqua file="pkg-background.tiff" alignment="bottomleft" scaling="none"/>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <options customize="allow" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+    <domains enable_localSystem="true"/>
+    <volume-check>
+        <allowed-os-versions><os-version min="11.0"/></allowed-os-versions>
+    </volume-check>
+    <script>
+    // The app needs macOS 14.2 (Core Audio process taps); the plug-ins run on macOS 11 and later.
+    function appSupported() {
+        return system.compareVersions(system.version.ProductVersion, '14.2') >= 0;
+    }
+    </script>
+    <choices-outline>
+        <line choice="app"/>
+        <line choice="vst3"/>
+        <line choice="au"/>
+    </choices-outline>
+    <choice id="app" title="SpatialEQ app" selected="appSupported()" enabled="appSupported()"
+            description="The standalone app: EQ and spatial audio for every app on your Mac. Installs SpatialEQ.app in /Applications (macOS 14.2 or later).">
+        <pkg-ref id="com.savannahdsp.spatialeq"/>
+    </choice>
+    <choice id="vst3" title="VST3 plug-in"
+            description="Installs SpatialEQ.vst3 in /Library/Audio/Plug-Ins/VST3 (Cubase, Ableton Live, REAPER, Studio One, Bitwig...).">
+        <pkg-ref id="com.savannahdsp.spatialeq.vst3"/>
+    </choice>
+    <choice id="au" title="Audio Unit plug-in"
+            description="Installs SpatialEQ.component in /Library/Audio/Plug-Ins/Components (Logic Pro, GarageBand, MainStage...).">
+        <pkg-ref id="com.savannahdsp.spatialeq.au"/>
+    </choice>
+    <pkg-ref id="com.savannahdsp.spatialeq" version="VERSION" onConclusion="none">SpatialEQ-component.pkg</pkg-ref>
+    <pkg-ref id="com.savannahdsp.spatialeq.vst3" version="VERSION" onConclusion="none">SpatialEQ-vst3.pkg</pkg-ref>
+    <pkg-ref id="com.savannahdsp.spatialeq.au" version="VERSION" onConclusion="none">SpatialEQ-au.pkg</pkg-ref>
+</installer-gui-script>

@@ -1,7 +1,7 @@
 ; SpatialEQ VST3 plug-in for Windows: installs SpatialEQ.vst3 into the common VST3 folder.
-;   iscc /DVersion=1.1.1 /DBundle=path\to\SpatialEQ.vst3 /DOutDir=out plugin\installer\SpatialEQ-VST3.iss
+;   iscc /DVersion=1.2.0 /DBundle=path\to\SpatialEQ.vst3 /DOutDir=out plugin\installer\SpatialEQ-VST3.iss
 #ifndef Version
-  #define Version "1.1.1"
+  #define Version "1.2.0"
 #endif
 #ifndef Bundle
   #define Bundle "..\..\build\plugin\VST3\Release\SpatialEQ.vst3"

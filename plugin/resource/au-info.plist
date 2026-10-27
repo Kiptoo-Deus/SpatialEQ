@@ -19,9 +19,9 @@
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.1.1</string>
+	<string>1.2.0</string>
 	<key>CFBundleVersion</key>
-	<string>1.1.1</string>
+	<string>1.2.0</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Savannah DSP</string>
 	<key>AudioComponents</key>
@@ -39,9 +39,9 @@
 			<string>SqEQ</string>
 			<key>type</key>
 			<string>aufx</string>
-			<!-- 1.1.1 as 0x00010101 -->
+			<!-- 1.2.0 as 0x00010200 -->
 			<key>version</key>
-			<integer>65793</integer>
+			<integer>66048</integer>
 		</dict>
 	</array>
 	<key>AudioUnit SupportedNumChannels</key>

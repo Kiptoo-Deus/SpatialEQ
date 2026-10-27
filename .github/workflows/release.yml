@@ -17,6 +17,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4 # for docs/release-notes
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -26,6 +27,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -la artifacts
-          (cd artifacts && sha256sum *.pkg *.dmg *.exe *.apk *.aab *.zip > SHA256SUMS-all.txt)
+          rm -f artifacts/SHA256SUMS*.txt
+          (cd artifacts && sha256sum * > SHA256SUMS.txt)
+          # Hand-written notes from docs/release-notes/<tag>.md when present, else GitHub's generated ones.
+          notes=(--generate-notes)
+          if [ -f "docs/release-notes/$GITHUB_REF_NAME.md" ]; then notes=(--notes-file "docs/release-notes/$GITHUB_REF_NAME.md"); fi
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
-            --title "SpatialEQ $GITHUB_REF_NAME" --generate-notes artifacts/*
+            --title "SpatialEQ $GITHUB_REF_NAME" "${notes[@]}" artifacts/*

@@ -4,7 +4,7 @@
 #   cmake --build build/windows --config Release
 #   ctest --test-dir build/windows -C Release
 cmake_minimum_required(VERSION 3.21)
-project(SpatialEQ VERSION 1.1.1 LANGUAGES CXX RC)
+project(SpatialEQ VERSION 1.2.0 LANGUAGES CXX RC)
 
 if(NOT WIN32)
   message(FATAL_ERROR "The Windows app builds on Windows only; use DSP/ for the portable core.")

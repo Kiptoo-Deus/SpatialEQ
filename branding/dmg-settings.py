@@ -1,6 +1,6 @@
 # dmgbuild settings for the SpatialEQ disk image (drag-to-Applications window with the box art).
 #   dmgbuild -s branding/dmg-settings.py -D app=path/to/SpatialEQ.app -D branding=path/to/branding \
-#            "SpatialEQ 1.1.1" SpatialEQ-1.1.1.dmg
+#            "SpatialEQ 1.2.0" SpatialEQ-1.2.0.dmg
 import os.path
 
 app = defines["app"]  # noqa: F821 (provided by dmgbuild)

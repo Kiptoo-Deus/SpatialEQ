@@ -32,7 +32,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.savannahdsp.spatialeq
         PRODUCT_NAME: SpatialEQ
-        MARKETING_VERSION: "1.1.1"
+        MARKETING_VERSION: "1.2.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_OBJC_BRIDGING_HEADER: App/Support/SpatialEQ-Bridging-Header.h
         HEADER_SEARCH_PATHS: $(SRCROOT)/../DSP/include

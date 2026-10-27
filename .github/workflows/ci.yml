@@ -29,7 +29,7 @@ jobs:
         run: ctest --test-dir build/dsp -C Release --output-on-failure
 
   macos:
-    name: macOS app
+    name: macOS (app + VST3 + AU installer)
     needs: dsp-tests
     runs-on: macos-15
     steps:
@@ -38,17 +38,28 @@ jobs:
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Build and package (universal, ad-hoc signed)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: plugin/ui/package-lock.json
+      - name: Build and package (universal, ad-hoc signed; runs the Steinberg validator)
         env:
           CMAKE: cmake
-        run: macos/scripts/package.sh
+        run: macos/scripts/package_all.sh
+      - name: Install and validate the Audio Unit
+        run: |
+          sudo installer -pkg build/release-macos/SpatialEQ-*-macOS.pkg -target /
+          ls -d /Applications/SpatialEQ.app /Library/Audio/Plug-Ins/VST3/SpatialEQ.vst3 /Library/Audio/Plug-Ins/Components/SpatialEQ.component
+          # Make the Audio Unit registry notice the newly installed component, then validate it.
+          killall -9 AudioComponentRegistrar || true
+          sleep 3
+          auval -v aufx SqEQ SvDP > auval.log 2>&1 || { tail -40 auval.log; exit 1; }
+          tail -3 auval.log
       - uses: actions/upload-artifact@v4
         with:
           name: SpatialEQ-macOS
-          path: |
-            macos/build/release/*.pkg
-            macos/build/release/*.dmg
-            macos/build/release/SHA256SUMS.txt
+          path: build/release-macos/*
 
   ios:
     name: iOS app
@@ -97,33 +108,6 @@ jobs:
         with:
           name: SpatialEQ-Windows
           path: out/*
-
-  plugin-macos:
-    name: Plug-ins (macOS VST3 + AU)
-    needs: dsp-tests
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
-      - name: Select Xcode
-        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: plugin/ui/package-lock.json
-      - name: Build, validate (Steinberg validator + auval) and package (universal, ad-hoc signed)
-        run: |
-          plugin/scripts/package_mac.sh
-          sudo installer -pkg build/release-plugin/SpatialEQ-Plugins-*-macOS.pkg -target /
-          # Make the Audio Unit registry notice the newly installed component, then validate it.
-          killall -9 AudioComponentRegistrar || true
-          sleep 3
-          auval -v aufx SqEQ SvDP > auval.log 2>&1 || { tail -40 auval.log; exit 1; }
-          tail -3 auval.log
-      - uses: actions/upload-artifact@v4
-        with:
-          name: SpatialEQ-Plugins-macOS
-          path: build/release-plugin/*
 
   vst3-windows:
     name: VST3 plug-in (Windows)

@@ -4,7 +4,7 @@
 
 **Parametric EQ and spatial audio with an interactive 3D scene, for macOS, Windows, Android and iOS.**
 
-Developed by [Savannah DSP](https://savannahdsp.com) · v1.1.1
+Developed by [Savannah DSP](https://savannahdsp.com) · v1.2.0
 
 ![SpatialEQ orbiting 360° while music plays](docs/spatialeq-360.gif)
 
@@ -22,7 +22,7 @@ Developed by [Savannah DSP](https://savannahdsp.com) · v1.1.1
 
 | Platform | What it processes | How | Status |
 |---|---|---|---|
-| **macOS** 14.2+ | Every app, to any output device | Core Audio process tap + private aggregate device (no driver) | Released (v1.1.1) |
+| **macOS** 14.2+ | Every app, to any output device | Core Audio process tap + private aggregate device (no driver) | Released (v1.2.0) |
 | **Android** 10+ | Every app that allows audio capture, with per-app switches | `AudioPlaybackCapture` + per-session muting | Released (v1.1.1, APK) |
 | **iOS** 17+ | Music files you play inside SpatialEQ | `AVAudioEngine` player | Released as source: build and run with Xcode (not on the App Store yet) |
 | **Windows** 10 (2004+) / 11 | Every app, on the device it plays on or any other | WASAPI process loopback + per-app mixer ducking → DSP → WASAPI render (or a virtual cable) | In testing |
@@ -35,7 +35,7 @@ All platforms share one C++17 DSP core (`DSP/`), so sound and presets are identi
 ## Install
 
 ### macOS
-1. Download **`SpatialEQ-1.1.1.pkg`** (installer) or **`SpatialEQ-1.1.1.dmg`** (drag to Applications) from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest).
+1. Download **`SpatialEQ-1.2.0-macOS.pkg`** from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest). It installs the app and the VST3 and Audio Unit plug-ins (untick any of them under **Customize**). **`SpatialEQ-1.2.0.dmg`** has the app alone, to drag to Applications.
 2. Open it. This release isn't notarized by Apple, so macOS blocks it the first time: go to **System Settings → Privacy & Security** and click **Open Anyway**.
 3. Launch SpatialEQ and click **Allow** when macOS asks for **System Audio Recording**.
 
@@ -52,7 +52,7 @@ Alternatively, choose a playback device as the source: with a virtual cable such
 Closing the window keeps SpatialEQ running in the notification area; **Quit** from its tray menu stops it.
 
 ### VST3 and Audio Unit plug-ins
-- **macOS:** run **`SpatialEQ-Plugins-<version>-macOS.pkg`**. It installs the VST3 into `/Library/Audio/Plug-Ins/VST3` and the Audio Unit (for Logic Pro and GarageBand) into `/Library/Audio/Plug-Ins/Components`; you can untick either one under **Customize**. The installer isn't notarized yet, so the first time macOS blocks it: **System Settings → Privacy & Security → Open Anyway**.
+- **macOS:** the main installer **`SpatialEQ-<version>-macOS.pkg`** (see above) puts the VST3 in `/Library/Audio/Plug-Ins/VST3` and the Audio Unit (for Logic Pro and GarageBand) in `/Library/Audio/Plug-Ins/Components`.
 - **Windows:** run **`SpatialEQ-VST3-<version>-windows-x64-setup.exe`**. It installs `SpatialEQ.vst3` into `C:\Program Files\Common Files\VST3` (or unzip **`SpatialEQ-VST3-windows-x64.zip`** there yourself). The editor uses Microsoft Edge WebView2, which Windows 10 and 11 already include.
 
 It has the same interface as the Mac app: the 3D scene, the sidebar and the parametric EQ editor. It also has the same 12 presets and AutoEq import and export. Head rotation is a parameter, so you can automate it in your DAW.
@@ -366,6 +366,7 @@ cd plugin/ui && npm ci && npm run build && cd ../..   # Svelte UI -> plugin/ui/d
 cmake -S plugin -B build/plugin -DCMAKE_BUILD_TYPE=Release
 cmake --build build/plugin --config Release --target SpatialEQ   # build/plugin/VST3/Release/SpatialEQ.vst3, validated
 plugin/scripts/package_mac.sh                                    # macOS: VST3 + Audio Unit and their .pkg installer
+macos/scripts/package_all.sh                                     # macOS release: app + VST3 + AU installer and the .dmg
 ```
 
 Icons and installer artwork come from `branding/`: `swift branding/make_assets.swift` regenerates the `.icns`, `.ico`, `.pkg`/`.dmg` backgrounds and Windows setup wizard images from the box artwork in `branding/source/`. The Windows setup programs are Inno Setup scripts (`windows/installer`, `plugin/installer`), built in CI.
