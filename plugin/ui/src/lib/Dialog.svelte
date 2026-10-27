@@ -1,9 +1,10 @@
 <script>
   // A macOS-style sheet: title, optional message or text field, and Cancel / OK buttons.
   // Mirrors the "Save Preset" sheet in macos/App/UI/MainView.swift.
+  import { untrack } from "svelte";
   let { title, message = "", field = null, okLabel = "OK", cancel = true, onok, oncancel } = $props();
-  let value = $state(field ?? "");
-  let input;
+  let value = $state(untrack(() => field ?? "")); // the field's starting text
+  let input = $state();
 
   $effect(() => { input?.focus(); input?.select(); });
   function key(e) {

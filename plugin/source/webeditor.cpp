@@ -110,22 +110,25 @@ struct WebEditor::Impl {
                     std::string_view(reinterpret_cast<const char*>(kUiHtml), sizeof kUiHtml), "text/html");
             return {};
         };
+        // On Windows, WebView2 starts asynchronously and bind() fails until it's ready (on macOS this
+        // runs during construction, before `webview` is assigned, hence the parameter).
+        options.webviewIsReady = [this](choc::ui::WebView& view) {
+            view.bind("sqEdit", [this](const choc::value::ValueView& args) -> choc::value::Value {
+                plugin->editPlain(ParamID(argNumber(args, 0)), argNumber(args, 1), argString(args, 2));
+                return {};
+            });
+            view.bind("sqCommand", [this](const choc::value::ValueView& args) -> choc::value::Value {
+                const std::string name = argString(args, 0);
+                if (name == "ready") {
+                    ready = true;
+                    sent.clear(); // a (re)loaded page needs every value
+                    log("page connected");
+                }
+                plugin->command(name, argNumber(args, 1), parent);
+                return {};
+            });
+        };
         webview = std::make_unique<choc::ui::WebView>(options);
-
-        webview->bind("sqEdit", [this](const choc::value::ValueView& args) -> choc::value::Value {
-            plugin->editPlain(ParamID(argNumber(args, 0)), argNumber(args, 1), argString(args, 2));
-            return {};
-        });
-        webview->bind("sqCommand", [this](const choc::value::ValueView& args) -> choc::value::Value {
-            const std::string name = argString(args, 0);
-            if (name == "ready") {
-                ready = true;
-                sent.clear(); // a (re)loaded page needs every value
-                log("page connected");
-            }
-            plugin->command(name, argNumber(args, 1), parent);
-            return {};
-        });
 
         embedChildView(parent, webview->getViewHandle(), width, height);
         log("web view created");

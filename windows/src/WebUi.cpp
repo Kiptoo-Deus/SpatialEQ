@@ -186,15 +186,18 @@ struct WebUi::Impl {
                     std::string_view(reinterpret_cast<const char*>(kUiHtml), sizeof kUiHtml), "text/html");
             return {};
         };
+        // On Windows, WebView2 starts asynchronously and bind() fails until it's ready.
+        options.webviewIsReady = [this](choc::ui::WebView& view) {
+            view.bind("sqEdit", [this](const choc::value::ValueView& args) -> choc::value::Value {
+                setParam(app, int(argNumber(args, 0)), argNumber(args, 1));
+                return {};
+            });
+            view.bind("sqCommand", [this](const choc::value::ValueView& args) -> choc::value::Value {
+                command(argString(args, 0), args);
+                return {};
+            });
+        };
         webview = std::make_unique<choc::ui::WebView>(options);
-        webview->bind("sqEdit", [this](const choc::value::ValueView& args) -> choc::value::Value {
-            setParam(app, int(argNumber(args, 0)), argNumber(args, 1));
-            return {};
-        });
-        webview->bind("sqCommand", [this](const choc::value::ValueView& args) -> choc::value::Value {
-            command(argString(args, 0), args);
-            return {};
-        });
         RECT r{};
         GetClientRect(static_cast<HWND>(parent), &r);
         embedChildView(parent, webview->getViewHandle(), r.right - r.left, r.bottom - r.top);
