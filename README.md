@@ -26,7 +26,7 @@ Developed by [Savannah DSP](https://savannahdsp.com) · v1.1.1
 | **Android** 10+ | Every app that allows audio capture, with per-app switches | `AudioPlaybackCapture` + per-session muting | Released (v1.1.1, APK) |
 | **iOS** 17+ | Music files you play inside SpatialEQ | `AVAudioEngine` player | Released as source: build and run with Xcode (not on the App Store yet) |
 | **Windows** 10 (2004+) / 11 | Every app, on the device it plays on or any other | WASAPI process loopback + per-app mixer ducking → DSP → WASAPI render (or a virtual cable) | In testing |
-| **VST3 plug-in** (macOS, Windows) | The track or bus it's inserted on, in any VST3 host | Stereo insert effect; every control is a host parameter you can automate | In testing (CI builds) |
+| **VST3 / AU plug-ins** (macOS, Windows) | The track or bus it's inserted on, in any VST3 host | Stereo insert effect; every control is a host parameter you can automate | In testing (CI builds) |
 
 All platforms share one C++17 DSP core (`DSP/`), so sound and presets are identical everywhere.
 
@@ -42,7 +42,7 @@ All platforms share one C++17 DSP core (`DSP/`), so sound and presets are identi
 Quitting SpatialEQ returns your Mac's audio to normal immediately. To uninstall, quit it and delete it from Applications.
 
 ### Windows
-1. Download **`SpatialEQ-windows-x64.zip`** from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest) (or a CI build), unzip it and run `SpatialEQ.exe`. It is a single portable file; settings live in `%APPDATA%\SpatialEQ`.
+1. Download **`SpatialEQ-<version>-windows-x64-setup.exe`** from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest) (or a CI build) and run it. It adds SpatialEQ to the Start menu and to **Settings → Apps** for uninstalling. Prefer no installer? **`SpatialEQ-windows-x64.zip`** holds the same single portable `SpatialEQ.exe`. Settings live in `%APPDATA%\SpatialEQ`.
 2. That's it: the source defaults to **All apps** and the output to your Windows default device, so it works with a single pair of headphones or speakers. Pick another output from the second menu if you like.
 
 How "All apps" works: Windows has no public API that captures other apps' audio *and* silences it (the macOS process tap does both). SpatialEQ captures every app except itself (process loopback, Windows 10 2004+) and, while an app is playing, turns it down to 0.01 % in the Windows volume mixer. The mixer is a floating-point multiply, so SpatialEQ scales the captured sound back up exactly and plays the processed result; what still leaks out directly is 80 dB down. Apps get their volume back as soon as they pause, when SpatialEQ stops or quits, and on sign-out. If SpatialEQ is ever killed mid-playback, it puts the volumes right the next time it runs, and **App → Reset app volumes** does so on demand. While it runs you'll see other apps near zero in the volume mixer; that's expected.
@@ -51,10 +51,9 @@ Alternatively, choose a playback device as the source: with a virtual cable such
 
 Closing the window keeps SpatialEQ running in the notification area; **Quit** from its tray menu stops it.
 
-### VST3 plug-in
-Download **`SpatialEQ-VST3-macOS.zip`** or **`SpatialEQ-VST3-windows-x64.zip`** from a CI build and unzip `SpatialEQ.vst3` into:
-- macOS: `~/Library/Audio/Plug-Ins/VST3` (the bundle is ad-hoc signed; if macOS blocks it, run `xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/SpatialEQ.vst3`).
-- Windows: `C:\Program Files\Common Files\VST3`. The editor uses Microsoft Edge WebView2, which Windows 10 and 11 already include.
+### VST3 and Audio Unit plug-ins
+- **macOS:** run **`SpatialEQ-Plugins-<version>-macOS.pkg`**. It installs the VST3 into `/Library/Audio/Plug-Ins/VST3` and the Audio Unit (for Logic Pro and GarageBand) into `/Library/Audio/Plug-Ins/Components`; you can untick either one under **Customize**. The installer isn't notarized yet, so the first time macOS blocks it: **System Settings → Privacy & Security → Open Anyway**.
+- **Windows:** run **`SpatialEQ-VST3-<version>-windows-x64-setup.exe`**. It installs `SpatialEQ.vst3` into `C:\Program Files\Common Files\VST3` (or unzip **`SpatialEQ-VST3-windows-x64.zip`** there yourself). The editor uses Microsoft Edge WebView2, which Windows 10 and 11 already include.
 
 It has the same interface as the Mac app: the 3D scene, the sidebar and the parametric EQ editor. It also has the same 12 presets and AutoEq import and export. Head rotation is a parameter, so you can automate it in your DAW.
 
@@ -366,7 +365,10 @@ VST3 plug-in (macOS or Windows; needs Node.js 20+ and CMake 3.25+). CMake fetche
 cd plugin/ui && npm ci && npm run build && cd ../..   # Svelte UI -> plugin/ui/dist/index.html
 cmake -S plugin -B build/plugin -DCMAKE_BUILD_TYPE=Release
 cmake --build build/plugin --config Release --target SpatialEQ   # build/plugin/VST3/Release/SpatialEQ.vst3, validated
+plugin/scripts/package_mac.sh                                    # macOS: VST3 + Audio Unit and their .pkg installer
 ```
+
+Icons and installer artwork come from `branding/`: `swift branding/make_assets.swift` regenerates the `.icns`, `.ico`, `.pkg`/`.dmg` backgrounds and Windows setup wizard images from the box artwork in `branding/source/`. The Windows setup programs are Inno Setup scripts (`windows/installer`, `plugin/installer`), built in CI.
 
 The UI is a Svelte 5 + Three.js app (`plugin/ui`) that recreates the Mac app's interface. It is compiled to a single HTML file, embedded in the plug-in, and shown in a native web view (WKWebView / WebView2) through [choc](https://github.com/Tracktion/choc). Run `npm run dev` in `plugin/ui` to work on it in a browser with simulated audio.
 

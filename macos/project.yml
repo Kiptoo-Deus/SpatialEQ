@@ -25,6 +25,9 @@ targets:
         group: DSP
       - path: ../DSP/include
         group: DSP
+      - path: ../branding/icon/SpatialEQ.icns
+        group: Resources
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.savannahdsp.spatialeq
@@ -43,6 +46,7 @@ targets:
       path: App/Support/Info.plist
       properties:
         CFBundleDisplayName: SpatialEQ
+        CFBundleIconFile: SpatialEQ
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.music

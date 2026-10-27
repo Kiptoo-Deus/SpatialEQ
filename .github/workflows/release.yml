@@ -26,6 +26,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -la artifacts
-          (cd artifacts && sha256sum *.pkg *.dmg *.apk *.aab *.zip > SHA256SUMS-all.txt)
+          (cd artifacts && sha256sum *.pkg *.dmg *.exe *.apk *.aab *.zip > SHA256SUMS-all.txt)
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
             --title "SpatialEQ $GITHUB_REF_NAME" --generate-notes artifacts/*

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleIconFile</key>
+	<string>SpatialEQ</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.1.1</string>
+	<key>CFBundleVersion</key>
+	<string>1.1.1</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2026 Savannah DSP</string>
+	<key>AudioComponents</key>
+	<array>
+		<dict>
+			<key>factoryFunction</key>
+			<string>AUWrapperFactory</string>
+			<key>description</key>
+			<string>Parametric EQ and 3D spatial audio</string>
+			<key>manufacturer</key>
+			<string>SvDP</string>
+			<key>name</key>
+			<string>Savannah DSP: SpatialEQ</string>
+			<key>subtype</key>
+			<string>SqEQ</string>
+			<key>type</key>
+			<string>aufx</string>
+			<!-- 1.1.1 as 0x00010101 -->
+			<key>version</key>
+			<integer>65793</integer>
+		</dict>
+	</array>
+	<key>AudioUnit SupportedNumChannels</key>
+	<array>
+		<dict>
+			<key>Inputs</key>
+			<string>2</string>
+			<key>Outputs</key>
+			<string>2</string>
+		</dict>
+	</array>
+</dict>
+</plist>

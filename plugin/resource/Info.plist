@@ -10,6 +10,8 @@
 	<string>com.savannahdsp.spatialeq.vst3</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleIconFile</key>
+	<string>SpatialEQ</string>
 	<key>CFBundleName</key>
 	<string>SpatialEQ</string>
 	<key>CFBundlePackageType</key>

@@ -1,7 +1,7 @@
 #include <winres.h>
 #include "../src/resource.h"
 
-IDI_APP ICON "SpatialEQ.ico"
+IDI_APP ICON "../../branding/icon/SpatialEQ.ico"
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION SQ_VERSION_MAJOR,SQ_VERSION_MINOR,SQ_VERSION_PATCH,0

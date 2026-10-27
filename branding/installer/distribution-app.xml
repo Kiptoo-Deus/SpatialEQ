@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- macOS Installer layout for SpatialEQ.app. VERSION is replaced by package.sh. -->
+<installer-gui-script minSpecVersion="2">
+    <title>SpatialEQ</title>
+    <organization>com.savannahdsp</organization>
+    <background file="pkg-background.tiff" alignment="bottomleft" scaling="none"/>
+    <background-darkAqua file="pkg-background.tiff" alignment="bottomleft" scaling="none"/>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <options customize="never" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+    <volume-check>
+        <allowed-os-versions><os-version min="14.2"/></allowed-os-versions>
+    </volume-check>
+    <choices-outline>
+        <line choice="app"/>
+    </choices-outline>
+    <choice id="app" title="SpatialEQ">
+        <pkg-ref id="com.savannahdsp.spatialeq"/>
+    </choice>
+    <pkg-ref id="com.savannahdsp.spatialeq" version="VERSION" onConclusion="none">SpatialEQ-component.pkg</pkg-ref>
+</installer-gui-script>

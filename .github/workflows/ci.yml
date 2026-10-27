@@ -80,30 +80,51 @@ jobs:
         run: cmake --build build/windows --config Release
       - name: Test
         run: ctest --test-dir build/windows -C Release --output-on-failure
-      - name: Package
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      - name: Package (setup program and portable zip)
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force out | Out-Null
+          $version = (Select-String -Path windows/CMakeLists.txt -Pattern 'project\(SpatialEQ VERSION ([0-9.]+)').Matches[0].Groups[1].Value
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Qp "/DVersion=$version" `
+            "/DAppExe=$PWD\build\windows\Release\SpatialEQ.exe" "/DOutDir=$PWD\out" windows\installer\SpatialEQ.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Compress-Archive -Path build/windows/Release/SpatialEQ.exe -DestinationPath out/SpatialEQ-windows-x64.zip
       - uses: actions/upload-artifact@v4
         with:
           name: SpatialEQ-Windows
-          path: out/SpatialEQ-windows-x64.zip
+          path: out/*
 
-  vst3:
-    name: VST3 plug-in (${{ matrix.name }})
+  plugin-macos:
+    name: Plug-ins (macOS VST3 + AU)
     needs: dsp-tests
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: macOS
-            os: macos-15
-            configure: -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
-          - name: Windows
-            os: windows-latest
-            configure: -A x64
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: plugin/ui/package-lock.json
+      - name: Build, validate (Steinberg validator + auval) and package (universal, ad-hoc signed)
+        run: |
+          plugin/scripts/package_mac.sh
+          sudo installer -pkg build/release-plugin/SpatialEQ-Plugins-*-macOS.pkg -target /
+          auval -v aufx SqEQ SvDP | tail -3
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SpatialEQ-Plugins-macOS
+          path: build/release-plugin/*
+
+  vst3-windows:
+    name: VST3 plug-in (Windows)
+    needs: dsp-tests
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -116,30 +137,27 @@ jobs:
         run: |
           npm ci
           npm run build
-      - name: Install Ninja
-        if: runner.os == 'macOS'
-        run: brew install ninja
       - name: Configure
-        shell: bash
-        run: cmake -S plugin -B build/plugin ${{ matrix.configure }}
+        run: cmake -S plugin -B build/plugin -A x64
       - name: Build (runs the Steinberg validator)
         run: cmake --build build/plugin --config Release --target SpatialEQ
-      - name: Package (macOS, ad-hoc signed)
-        if: runner.os == 'macOS'
+      - name: Install Inno Setup
+        shell: pwsh
         run: |
-          codesign --force --deep --sign - build/plugin/VST3/Release/SpatialEQ.vst3
-          mkdir -p out
-          ditto -c -k --keepParent build/plugin/VST3/Release/SpatialEQ.vst3 out/SpatialEQ-VST3-macOS.zip
-      - name: Package (Windows)
-        if: runner.os == 'Windows'
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      - name: Package (setup program and zip)
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force out | Out-Null
+          $version = (Select-String -Path plugin/CMakeLists.txt -Pattern 'project\(SpatialEQPlugin VERSION ([0-9]+\.[0-9]+\.[0-9]+)').Matches[0].Groups[1].Value
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Qp "/DVersion=$version" `
+            "/DBundle=$PWD\build\plugin\VST3\Release\SpatialEQ.vst3" "/DOutDir=$PWD\out" plugin\installer\SpatialEQ-VST3.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Compress-Archive -Path build/plugin/VST3/Release/SpatialEQ.vst3 -DestinationPath out/SpatialEQ-VST3-windows-x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: SpatialEQ-VST3-${{ matrix.name }}
-          path: out/*.zip
+          name: SpatialEQ-VST3-Windows
+          path: out/*
 
   android:
     name: Android app
