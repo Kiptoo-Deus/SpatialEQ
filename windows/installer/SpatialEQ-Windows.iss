@@ -37,6 +37,8 @@ SetupIconFile={#Branding}\icon\SpatialEQ.ico
 UninstallDisplayIcon={app}\SpatialEQ.exe
 UninstallDisplayName=SpatialEQ {#Version} (app and VST3 plug-in)
 WizardStyle=modern
+; Show the Welcome page (Inno Setup 6 hides it by default): the box art and what gets installed.
+DisableWelcomePage=no
 WizardImageFile={#Branding}\installer\wizard-100.bmp,{#Branding}\installer\wizard-125.bmp,{#Branding}\installer\wizard-150.bmp,{#Branding}\installer\wizard-175.bmp,{#Branding}\installer\wizard-200.bmp
 WizardSmallImageFile={#Branding}\installer\wizard-small-100.bmp,{#Branding}\installer\wizard-small-125.bmp,{#Branding}\installer\wizard-small-150.bmp,{#Branding}\installer\wizard-small-175.bmp,{#Branding}\installer\wizard-small-200.bmp
 Compression=lzma2
