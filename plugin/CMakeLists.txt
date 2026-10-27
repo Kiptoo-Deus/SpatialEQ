@@ -12,7 +12,7 @@ if(NOT DEFINED ENV{MACOSX_DEPLOYMENT_TARGET})
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "macOS deployment target")
 endif()
 
-project(SpatialEQPlugin VERSION 1.1.1 LANGUAGES C CXX)
+project(SpatialEQPlugin VERSION 1.1.1.0 LANGUAGES C CXX)
 if(APPLE)
     enable_language(OBJCXX)
 endif()

@@ -95,7 +95,7 @@ struct WebEditor::Impl {
             const double fs = plugin->sampleRate();
             const double latencyMs = 1000.0 * plugin->getLatencySamples() / fs;
             webview->evaluateJavascript("window.sqInfo({sampleRate:" + number(fs) + ",latencyMs:" + number(latencyMs) +
-                                        ",version:\"" FULL_VERSION_STR "\",preset:" +
+                                        ",version:\"" VERSION_STR "\",preset:" +
                                         choc::json::getEscapedQuotedString(plugin->presetName) + "})");
         }
         if (plugin->paramsChanged.exchange(false)) {
