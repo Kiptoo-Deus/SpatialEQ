@@ -11,22 +11,32 @@ import { defaultParams, PRESETS } from "./params.js";
 
 export const ui = $state({
   p: defaultParams(),
-  bands: new Array(64).fill(0),
-  history: [],
   level: 0, peakL: 0, peakR: 0, lim: 0, lev: 0,
   sampleRate: 48000, latencyMs: 1.5, version: "1.1.1", preset: "Flat", edited: false,
   selectedBand: -1,
   connected: false,
 });
 
-const HISTORY = 48;
-function pushHistory(bands) {
-  ui.history.unshift(bands.slice());
-  if (ui.history.length > HISTORY) ui.history.length = HISTORY;
+// Spectrum data changes 30 times a second, so it stays out of Svelte's reactive state: the canvases
+// read it in their animation loops. history is a ring of HISTORY rows; row 0 is at `head`.
+export const BANDS = 64, HISTORY = 48;
+export const spectrum = {
+  bands: new Float32Array(BANDS),
+  history: new Float32Array(BANDS * HISTORY),
+  head: 0,
+  frame: 0,         // increments on every new spectrum frame
+  paramsVersion: 0, // increments whenever any parameter changes
+};
+function pushFrame(bands) {
+  spectrum.bands.set(bands);
+  spectrum.head = (spectrum.head + HISTORY - 1) % HISTORY;
+  spectrum.history.set(bands, spectrum.head * BANDS);
+  spectrum.frame++;
 }
 
 export function edit(id, value, phase = "once") {
   ui.p[id] = value;
+  spectrum.paramsVersion++;
   if (phase !== "begin" && phase !== "end") ui.edited = true;
   if (ui.connected) window.sqEdit(id, value, phase);
 }
@@ -37,15 +47,17 @@ export function command(name, arg = 0) {
 }
 
 if (typeof window !== "undefined") {
-  window.sqParams = (values) => { for (const k in values) ui.p[k] = values[k]; };
+  window.sqParams = (values) => {
+    for (const k in values) ui.p[k] = values[k];
+    spectrum.paramsVersion++;
+  };
   window.sqInfo = (info) => {
     if (info.preset !== undefined) { ui.preset = info.preset; ui.edited = false; }
     for (const k of ["sampleRate", "latencyMs", "version"]) if (info[k] !== undefined) ui[k] = info[k];
   };
   window.sqFrame = (f) => {
-    ui.bands = f.bands;
+    pushFrame(f.bands);
     ui.level = f.level; ui.peakL = f.peakL; ui.peakR = f.peakR; ui.lim = f.lim; ui.lev = f.lev;
-    pushHistory(f.bands);
   };
 
   // The plug-in's native functions can appear just after this module runs, so keep checking.

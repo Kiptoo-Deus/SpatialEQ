@@ -14,6 +14,7 @@
 
 #include <cstdio>
 #include <string>
+#include <vector>
 
 using namespace Steinberg;
 
@@ -48,6 +49,7 @@ struct WebEditor::Impl {
     choc::messageloop::Timer timer;
     sq_spectrum* spectrum = sq_spectrum_create(kSpectrumBands);
     bool ready = false;
+    std::vector<double> sent; // normalized values last sent to the UI
 
     explicit Impl(SpatialEQPlugin* p) : plugin(p) {}
     ~Impl() {
@@ -77,7 +79,10 @@ struct WebEditor::Impl {
         });
         webview->bind("sqCommand", [this](const choc::value::ValueView& args) -> choc::value::Value {
             const std::string name = argString(args, 0);
-            if (name == "ready") ready = true;
+            if (name == "ready") {
+                ready = true;
+                sent.clear(); // a (re)loaded page needs every value
+            }
             plugin->command(name, argNumber(args, 1), parent);
             return {};
         });
@@ -99,11 +104,17 @@ struct WebEditor::Impl {
                                         choc::json::getEscapedQuotedString(plugin->presetName) + "})");
         }
         if (plugin->paramsChanged.exchange(false)) {
-            std::string js = "window.sqParams({";
-            for (const ParamDef& d : paramDefs())
-                js += "\"" + std::to_string(d.id) + "\":" + number(toPlain(d, plugin->getParamNormalized(d.id))) + ",";
-            js.back() = '}';
-            webview->evaluateJavascript(js + ")");
+            // Only the values that changed since the last update (all of them the first time).
+            const auto& defs = paramDefs();
+            sent.resize(defs.size(), -1.0);
+            std::string js;
+            for (size_t i = 0; i < defs.size(); ++i) {
+                const double n = plugin->getParamNormalized(defs[i].id);
+                if (n == sent[i]) continue;
+                sent[i] = n;
+                js += (js.empty() ? "" : ",") + ("\"" + std::to_string(defs[i].id) + "\":" + number(toPlain(defs[i], n)));
+            }
+            if (!js.empty()) webview->evaluateJavascript("window.sqParams({" + js + "})");
         }
 
         float bands[kSpectrumBands];

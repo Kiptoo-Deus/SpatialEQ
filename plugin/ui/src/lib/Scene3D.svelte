@@ -7,7 +7,7 @@
   import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
   import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
   import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-  import { ui, edit } from "./bridge.svelte.js";
+  import { ui, edit, spectrum, BANDS, HISTORY } from "./bridge.svelte.js";
   import { P, SRC, srcId, CHANNELS, UPMIX, eqResponse } from "./params.js";
 
   let host;
@@ -39,6 +39,10 @@
     }
     return stops[stops.length - 1][1];
   }
+  // heat() in linear light, tabulated: the terrain looks up 3072 colours per frame.
+  const HEAT_N = 256;
+  const HEAT_LUT = new Float32Array(HEAT_N * 3);
+  for (let i = 0; i < HEAT_N; i++) HEAT_LUT.set(lin(heat(i / (HEAT_N - 1))), i * 3);
 
   function labelSprite(text) {
     const c = document.createElement("canvas");
@@ -58,7 +62,7 @@
 
   onMount(() => {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio || 1);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.toneMapping = THREE.NoToneMapping;
     host.appendChild(renderer.domElement);
 
@@ -186,7 +190,7 @@
       toneMapped: false }));
     scene.add(ribbon);
     const ribbonFreqs = Array.from({ length: RN }, (_, i) => 20 * Math.pow(1000, i / (RN - 1)));
-    let ribbonKey = "";
+    let ribbonVersion = -1, terrainFrame = -1;
 
     // ---- post: bloom like SCNCamera (threshold 0.55, intensity 1.4)
     const composer = new EffectComposer(renderer);
@@ -200,14 +204,17 @@
       if (!w || !h) return;
       renderer.setSize(w, h);
       composer.setSize(w, h);
+      bloom.setSize(Math.ceil(w / 2), Math.ceil(h / 2)); // bloom is blurry anyway: half resolution is ~4x cheaper
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      dirty = true;
     }
     const ro = new ResizeObserver(resize);
     ro.observe(host);
     resize();
 
     let mode = "none", last = [0, 0], dragSource = -1; // pointer interaction state
+    let dirty = true; // something other than audio changed (camera, size): render the next frame
 
     // ---- per-frame update
     function update() {
@@ -240,25 +247,27 @@
         node.userData.cone.scale.set(pulse, 1, pulse);
       });
 
-      // terrain from the spectrum history
-      const hist = ui.history;
-      for (let r = 0; r < ROWS; r++) {
-        const row = hist[r] || [];
-        const z = T_FRONT - (r / (ROWS - 1)) * T_D, fade = 1 - r / ROWS;
-        for (let c = 0; c < COLS; c++) {
-          const v = row[c] || 0, o = (r * COLS + c) * 3;
-          tPos[o] = (c / (COLS - 1) - 0.5) * T_W; tPos[o + 1] = FLOOR_Y + v * 1.3; tPos[o + 2] = z;
-          const [cr, cg, cb] = lin(heat(v));
-          tCol[o] = cr * fade; tCol[o + 1] = cg * fade; tCol[o + 2] = cb * fade;
+      // terrain from the spectrum history, only when a new spectrum frame arrived
+      if (spectrum.frame !== terrainFrame) {
+        terrainFrame = spectrum.frame;
+        const hist = spectrum.history;
+        for (let r = 0; r < ROWS; r++) {
+          const row = ((spectrum.head + r) % HISTORY) * BANDS;
+          const z = T_FRONT - (r / (ROWS - 1)) * T_D, fade = 1 - r / ROWS;
+          for (let c = 0; c < COLS; c++) {
+            const v = hist[row + c], o = (r * COLS + c) * 3;
+            tPos[o] = (c / (COLS - 1) - 0.5) * T_W; tPos[o + 1] = FLOOR_Y + v * 1.3; tPos[o + 2] = z;
+            const k = Math.round(Math.min(1, Math.max(0, v)) * (HEAT_N - 1)) * 3;
+            tCol[o] = HEAT_LUT[k] * fade; tCol[o + 1] = HEAT_LUT[k + 1] * fade; tCol[o + 2] = HEAT_LUT[k + 2] * fade;
+          }
         }
+        terrainGeo.attributes.position.needsUpdate = terrainGeo.attributes.color.needsUpdate = true;
       }
-      terrainGeo.attributes.position.needsUpdate = terrainGeo.attributes.color.needsUpdate = true;
       terrain.material.opacity = s[P.bypass] ? 0.35 * 0.55 : 0.55;
 
       // ribbon only when the EQ changes
-      const keyNow = JSON.stringify(s);
-      if (keyNow !== ribbonKey) {
-        ribbonKey = keyNow;
+      if (spectrum.paramsVersion !== ribbonVersion) {
+        ribbonVersion = spectrum.paramsVersion;
         const db = eqResponse(s, ribbonFreqs);
         for (let i = 0; i < RN; i++) {
           const x = (i / (RN - 1) - 0.5) * T_W, y = FLOOR_Y + 0.9 + (Math.max(-18, Math.min(18, db[i])) / 18) * 0.8;
@@ -271,9 +280,14 @@
     let raf, visible = true;
     const io = new IntersectionObserver((e) => (visible = e[0].isIntersecting));
     io.observe(host);
-    const loop = () => {
+    // Render only when something changed (a spectrum frame at 30 Hz, an edit, the camera), at most 60 fps.
+    let lastFrame = -1, lastParams = -1, lastRender = 0;
+    const loop = (ms = 0) => {
       raf = requestAnimationFrame(loop);
       if (!visible || document.hidden) return;
+      const changed = dirty || spectrum.frame !== lastFrame || spectrum.paramsVersion !== lastParams;
+      if (!changed || ms - lastRender < 15) return;
+      dirty = false; lastFrame = spectrum.frame; lastParams = spectrum.paramsVersion; lastRender = ms;
       update();
       composer.render();
     };
@@ -295,6 +309,7 @@
     const el = renderer.domElement;
     el.addEventListener("pointerdown", (e) => {
       last = [e.clientX, e.clientY];
+      dirty = true;
       if (e.detail === 2) { resetCamera(); return; }
       el.setPointerCapture(e.pointerId);
       ray.setFromCamera(ndc(e), camera);
@@ -309,6 +324,7 @@
     });
     el.addEventListener("pointermove", (e) => {
       if (mode === "none") return;
+      dirty = true;
       const dx = e.clientX - last[0], dy = e.clientY - last[1];
       last = [e.clientX, e.clientY];
       if (mode === "orbit") {
@@ -334,13 +350,14 @@
     const end = () => {
       if (mode === "source") for (const f of [SRC.az, SRC.el, SRC.dist]) edit(srcId(dragSource, f), ui.p[srcId(dragSource, f)], "end");
       if (mode === "speaker") edit(P.speakerSpan, ui.p[P.speakerSpan], "end");
-      mode = "none"; dragSource = -1;
+      mode = "none"; dragSource = -1; dirty = true;
     };
     el.addEventListener("pointerup", end);
     el.addEventListener("pointercancel", end);
     el.addEventListener("wheel", (e) => {
       e.preventDefault();
       camera.position.z = Math.max(3.5, Math.min(16, camera.position.z * (1 + e.deltaY * 0.004)));
+      dirty = true;
     }, { passive: false });
 
     return () => { cancelAnimationFrame(raf); ro.disconnect(); io.disconnect(); renderer.dispose(); };

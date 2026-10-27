@@ -5,7 +5,7 @@
   import Switch from "./Switch.svelte";
   import Slider from "./Slider.svelte";
   import Menu from "./Menu.svelte";
-  import { ui, edit, command } from "./bridge.svelte.js";
+  import { ui, edit, command, spectrum } from "./bridge.svelte.js";
   import { P, BAND, BAND_TYPES, MAX_BANDS, bandId, hasGain, eqResponse } from "./params.js";
 
   const MIN_F = 20, MAX_F = 20000, RANGE = 18;
@@ -70,7 +70,7 @@
   function drawSpectrum(t) {
     if (!spec) return;
     const g = ctx2d(spec);
-    const bands = ui.bands;
+    const bands = Array.from(spectrum.bands);
     const n = bands.length;
     const wave = (phase, speed, ripple) => bands.map((live, i) => {
       const f = 20 * Math.pow(1000, (i + 0.5) / n);
