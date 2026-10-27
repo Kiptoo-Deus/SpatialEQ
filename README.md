@@ -26,6 +26,7 @@ Developed by [Savannah DSP](https://savannahdsp.com) · v1.1.1
 | **Android** 10+ | Every app that allows audio capture, with per-app switches | `AudioPlaybackCapture` + per-session muting | Released (v1.1.1, APK) |
 | **iOS** 17+ | Music files you play inside SpatialEQ | `AVAudioEngine` player | Released as source: build and run with Xcode (not on the App Store yet) |
 | **Windows** 10 (2004+) / 11 | Every app, on the device it plays on or any other | WASAPI process loopback + per-app mixer ducking → DSP → WASAPI render (or a virtual cable) | In testing |
+| **VST3 plug-in** (macOS, Windows) | The track or bus it's inserted on, in any VST3 host | Stereo insert effect; every control is a host parameter you can automate | In testing (CI builds) |
 
 All platforms share one C++17 DSP core (`DSP/`), so sound and presets are identical everywhere.
 
@@ -49,6 +50,13 @@ How "All apps" works: Windows has no public API that captures other apps' audio 
 Alternatively, choose a playback device as the source: with a virtual cable such as [VB-CABLE](https://vb-audio.com/Cable/) set as the Windows default output, apps play into the cable and nobody hears them directly, without touching app volumes.
 
 Closing the window keeps SpatialEQ running in the notification area; **Quit** from its tray menu stops it.
+
+### VST3 plug-in
+Download **`SpatialEQ-VST3-macOS.zip`** or **`SpatialEQ-VST3-windows-x64.zip`** from a CI build and unzip `SpatialEQ.vst3` into:
+- macOS: `~/Library/Audio/Plug-Ins/VST3` (the bundle is ad-hoc signed; if macOS blocks it, run `xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/SpatialEQ.vst3`).
+- Windows: `C:\Program Files\Common Files\VST3`. The editor uses Microsoft Edge WebView2, which Windows 10 and 11 already include.
+
+It has the same interface as the Mac app: the 3D scene, the sidebar and the parametric EQ editor. It also has the same 12 presets and AutoEq import and export. Head rotation is a parameter, so you can automate it in your DAW.
 
 ### Android
 1. Download **`SpatialEQ-android.apk`** from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest) on your phone and open it. Allow your browser or file manager to **install unknown apps** when Android asks. Google Play is coming.
@@ -352,6 +360,16 @@ cmake --build build/windows --config Release        # build/windows/Release/Spat
 ctest --test-dir build/windows -C Release           # settings, AutoEq, format conversion, duck compensation tests
 ```
 
+VST3 plug-in (macOS or Windows; needs Node.js 20+ and CMake 3.25+). CMake fetches the VST3 SDK and choc:
+
+```bash
+cd plugin/ui && npm ci && npm run build && cd ../..   # Svelte UI -> plugin/ui/dist/index.html
+cmake -S plugin -B build/plugin -DCMAKE_BUILD_TYPE=Release
+cmake --build build/plugin --config Release --target SpatialEQ   # build/plugin/VST3/Release/SpatialEQ.vst3, validated
+```
+
+The UI is a Svelte 5 + Three.js app (`plugin/ui`) that recreates the Mac app's interface. It is compiled to a single HTML file, embedded in the plug-in, and shown in a native web view (WKWebView / WebView2) through [choc](https://github.com/Tracktion/choc). Run `npm run dev` in `plugin/ui` to work on it in a browser with simulated audio.
+
 | Path | Contents |
 |---|---|
 | `DSP/` | C++17 real-time engine, FIFO, spectrum analyser, C API and unit tests |
@@ -359,6 +377,7 @@ ctest --test-dir build/windows -C Release           # settings, AutoEq, format c
 | `macos/` | macOS app (Core Audio tap routing, menu bar, Settings, installer scripts) |
 | `ios/` | iOS player app |
 | `windows/` | Windows app (WASAPI routing, app capture and mixer ducking, device handling, Dear ImGui UI) and its unit tests |
+| `plugin/` | VST3 plug-in: `source/` (C++ effect, parameters, presets, web-view editor) and `ui/` (Svelte UI) |
 | `android/` | Android app (Kotlin + Compose, JNI to the DSP core), Play Store assets and a test-player helper |
 | `docs/` | Screenshots, demo video and the privacy policy (served by GitHub Pages) |
 | `.github/workflows/` | CI and releases |
@@ -377,7 +396,7 @@ ctest --test-dir build/windows -C Release           # settings, AutoEq, format c
 It also runs a real-time benchmark.
 
 **CI/CD:**
-- **Every push:** DSP tests on Linux, macOS and Windows (MSVC), plus macOS, Windows, iOS and Android builds with downloadable artifacts.
+- **Every push:** DSP tests on Linux, macOS and Windows (MSVC), plus macOS, Windows, iOS, Android and VST3 plug-in builds (the plug-in also passes Steinberg's validator) with downloadable artifacts.
 - **Releases:** push a version tag to publish a GitHub Release with every installer attached:
 
 ```bash

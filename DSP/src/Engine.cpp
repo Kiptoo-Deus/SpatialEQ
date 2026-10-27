@@ -144,6 +144,8 @@ public:
 
     int readAnalysis(float* dst, int n) { return analysis_.pop(dst, n); }
 
+    int latency() const { return limiter_.latency(); }
+
     void meters(sq_meters* m) const {
         m->peakL = peakL_.load(std::memory_order_relaxed);
         m->peakR = peakR_.load(std::memory_order_relaxed);
@@ -383,6 +385,7 @@ void sq_engine_process_abl(sq_engine* e, const AudioBufferList* in, int inOffset
 #endif
 int sq_engine_read_analysis(sq_engine* e, float* dst, int n) { return e->impl.readAnalysis(dst, n); }
 void sq_engine_get_meters(sq_engine* e, sq_meters* out) { e->impl.meters(out); }
+int sq_engine_latency(const sq_engine* e) { return e->impl.latency(); }
 
 void sq_eq_response(const sq_params* p, double fs, const float* freqs, float* outDb, int n) {
     sq::BiquadCoeffs coeffs[SQ_MAX_BANDS];

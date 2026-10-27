@@ -130,6 +130,9 @@ int sq_engine_read_analysis(sq_engine* e, float* dst, int maxSamples);
 
 void sq_engine_get_meters(sq_engine* e, sq_meters* out);
 
+// Processing latency in samples (the limiter look-ahead) at the prepared sample rate.
+int sq_engine_latency(const sq_engine* e);
+
 // Magnitude response (dB) of preamp + EQ bands at the given frequencies, for drawing curves.
 void sq_eq_response(const sq_params* p, double sampleRate, const float* freqs, float* outDb, int n);
 

@@ -1,0 +1,73 @@
+/* Theme values copied from macos/App/UI/Theme.swift (dark appearance). */
+:root {
+  --background: rgb(9, 10, 15);        /* 0.035, 0.04, 0.06 */
+  --panel: rgb(18, 20, 28);            /* 0.07, 0.08, 0.11 */
+  --panel-border: rgba(255, 255, 255, 0.07);
+  --accent: rgb(92, 217, 242);         /* 0.36, 0.85, 0.95 */
+  --accent2: rgb(250, 158, 69);        /* 0.98, 0.62, 0.27 */
+  --text: rgba(255, 255, 255, 0.92);
+  --text-dim: rgba(255, 255, 255, 0.55);
+  --control-blue: rgb(10, 132, 255);   /* macOS system accent, dark mode */
+  --section-bg: rgba(255, 255, 255, 0.03);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+#app { height: 100%; }
+
+.caption { font-size: 11px; }
+.caption2 { font-size: 10px; }
+.dim { color: var(--text-dim); }
+.mono { font-variant-numeric: tabular-nums; }
+.section-title { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; color: var(--text-dim); }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+}
+
+button { font: inherit; color: inherit; }
+
+/* macOS small push button (dark) */
+.mac-button {
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 11px;
+  line-height: 16px;
+  box-shadow: 0 0.5px 0 rgba(255, 255, 255, 0.08) inset, 0 0.5px 1px rgba(0, 0, 0, 0.4);
+}
+.mac-button:active { background: rgba(255, 255, 255, 0.2); }
+.mac-button:disabled { opacity: 0.4; }
+
+/* Borderless icon button */
+.icon-button {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  color: var(--text);
+  opacity: 0.85;
+  display: inline-flex;
+  align-items: center;
+}
+.icon-button:disabled { opacity: 0.3; }
+.icon-button:active { opacity: 0.6; }
+
+a { color: var(--control-blue); text-decoration: none; }

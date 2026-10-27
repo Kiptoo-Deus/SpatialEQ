@@ -90,6 +90,57 @@ jobs:
           name: SpatialEQ-Windows
           path: out/SpatialEQ-windows-x64.zip
 
+  vst3:
+    name: VST3 plug-in (${{ matrix.name }})
+    needs: dsp-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-15
+            configure: -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
+          - name: Windows
+            os: windows-latest
+            configure: -A x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: plugin/ui/package-lock.json
+      - name: Build the UI
+        working-directory: plugin/ui
+        run: |
+          npm ci
+          npm run build
+      - name: Install Ninja
+        if: runner.os == 'macOS'
+        run: brew install ninja
+      - name: Configure
+        shell: bash
+        run: cmake -S plugin -B build/plugin ${{ matrix.configure }}
+      - name: Build (runs the Steinberg validator)
+        run: cmake --build build/plugin --config Release --target SpatialEQ
+      - name: Package (macOS, ad-hoc signed)
+        if: runner.os == 'macOS'
+        run: |
+          codesign --force --deep --sign - build/plugin/VST3/Release/SpatialEQ.vst3
+          mkdir -p out
+          ditto -c -k --keepParent build/plugin/VST3/Release/SpatialEQ.vst3 out/SpatialEQ-VST3-macOS.zip
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Compress-Archive -Path build/plugin/VST3/Release/SpatialEQ.vst3 -DestinationPath out/SpatialEQ-VST3-windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SpatialEQ-VST3-${{ matrix.name }}
+          path: out/*.zip
+
   android:
     name: Android app
     needs: dsp-tests
