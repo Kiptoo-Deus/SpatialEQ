@@ -115,7 +115,11 @@ jobs:
         run: |
           plugin/scripts/package_mac.sh
           sudo installer -pkg build/release-plugin/SpatialEQ-Plugins-*-macOS.pkg -target /
-          auval -v aufx SqEQ SvDP | tail -3
+          # Make the Audio Unit registry notice the newly installed component, then validate it.
+          killall -9 AudioComponentRegistrar || true
+          sleep 3
+          auval -v aufx SqEQ SvDP > auval.log 2>&1 || { tail -40 auval.log; exit 1; }
+          tail -3 auval.log
       - uses: actions/upload-artifact@v4
         with:
           name: SpatialEQ-Plugins-macOS
