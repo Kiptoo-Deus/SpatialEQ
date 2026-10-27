@@ -16,7 +16,7 @@ namespace sq::app {
 
 class App {
 public:
-    static constexpr int kSpectrumBands = 96;
+    static constexpr int kSpectrumBands = 64; // as the UI and the Mac app draw
 
     App();
     ~App();
@@ -32,6 +32,7 @@ public:
     // ---- Sound settings (edit `settings` directly; tick() pushes changes to the engine)
     SoundSettings settings;
     bool enabled = true;
+    double headYawDeg = 0; // turns the listener's head (the UI's head rotation slider); not saved
     int selectedBand = -1;
 
     // ---- Presets
@@ -103,6 +104,7 @@ private:
     std::chrono::steady_clock::time_point retryAt_{};
 
     sq_params lastPushed_{};
+    double lastYaw_ = 0;
     bool lastEnabled_ = true;
     bool havePushed_ = false;
 

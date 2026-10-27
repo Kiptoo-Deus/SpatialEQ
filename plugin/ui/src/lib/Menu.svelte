@@ -1,6 +1,7 @@
 <script>
   // macOS pull-down menu button (dark): bordered button with a chevron, opening a menu panel.
-  let { items = [], width = null, icon = false, children } = $props();
+  // Items: { label, action, checked, disabled } | { header } | { divider }. `up` opens the panel above.
+  let { items = [], width = null, icon = false, up = false, align = "right", children } = $props();
   let open = $state(false);
   let root;
 
@@ -22,11 +23,12 @@
     {/if}
   </button>
   {#if open}
-    <div class="list">
+    <div class="list" class:up class:left={align === "left"}>
       {#each items as item}
         {#if item.divider}<div class="divider"></div>
         {:else if item.header}<div class="header">{item.header}</div>
-        {:else}<button class="item" disabled={item.disabled} onclick={() => pick(item)}>{item.label}</button>{/if}
+        {:else}<button class="item" class:checkable={items.some((i) => i.checked !== undefined)} disabled={item.disabled}
+                  onclick={() => pick(item)}>{#if item.checked}<span class="check">✓</span>{/if}{item.label}</button>{/if}
       {/each}
     </div>
   {/if}
@@ -72,6 +74,10 @@
     padding: 3px 10px;
     font-size: 13px;
   }
+  .list.up { top: auto; bottom: calc(100% + 4px); }
+  .list.left { right: auto; left: 0; }
+  .item.checkable { padding-left: 22px; position: relative; }
+  .check { position: absolute; left: 8px; }
   .item:hover { background: var(--control-blue); color: white; }
   .item:disabled { opacity: 0.35; background: none; }
   .header { padding: 4px 10px 2px; font-size: 11px; font-weight: 600; color: var(--text-dim); }

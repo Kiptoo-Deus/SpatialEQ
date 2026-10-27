@@ -90,16 +90,16 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: plugin/ui/package-lock.json
+      - name: Build the interface (shared by the app and the VST3)
+        working-directory: plugin/ui
+        run: |
+          npm ci
+          npm run build
       - name: Build and test the app
         run: |
           cmake -S windows -B build/windows -A x64
           cmake --build build/windows --config Release
           ctest --test-dir build/windows -C Release --output-on-failure
-      - name: Build the plug-in UI
-        working-directory: plugin/ui
-        run: |
-          npm ci
-          npm run build
       - name: Build the VST3 (runs the Steinberg validator)
         run: |
           cmake -S plugin -B build/plugin -A x64

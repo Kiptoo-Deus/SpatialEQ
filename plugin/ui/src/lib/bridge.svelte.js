@@ -3,8 +3,12 @@
 // C++ -> JS:  window.sqParams({id: plain, ...})   parameter values (on load and whenever any change)
 //             window.sqFrame({bands, level, peakL, peakR, lim, lev})   ~30 times a second
 //             window.sqInfo({sampleRate, latencyMs, version, preset})
+//             window.sqApp({...})   standalone app only (Windows): route, devices, presets, options
 // JS -> C++:  sqEdit(id, plain, phase)   phase: "begin" | "set" | "end" | "once"
-//             sqCommand(name, arg)       preset, import, export, addBand, removeBand, resetEq, resetSources
+//             sqCommand(name, arg)       preset, import, export, addBand, removeBand, resetEq, resetSources;
+//                                        the app adds userPreset, savePreset, updatePreset, deletePreset,
+//                                        setSource, setOutput, retry, soundSettings, resetAppVolumes,
+//                                        closeToTray, startWithWindows, clearError
 //
 // Without the plug-in (vite dev / preview), the UI runs on local state with simulated audio.
 import { defaultParams, PRESETS } from "./params.js";
@@ -15,6 +19,8 @@ export const ui = $state({
   sampleRate: 48000, latencyMs: 1.5, version: "1.2.0", preset: "Flat", edited: false,
   selectedBand: -1,
   connected: false,
+  // Set by the standalone Windows app (null in the plug-in): see sqApp in windows/src/WebUi.cpp.
+  app: null,
 });
 
 // Spectrum data changes 30 times a second, so it stays out of Svelte's reactive state: the canvases
@@ -59,6 +65,11 @@ if (typeof window !== "undefined") {
   window.sqParams = (values) => {
     for (const k in values) ui.p[k] = values[k];
     spectrum.paramsVersion++;
+  };
+  window.sqApp = (info) => {
+    ui.app = info;
+    ui.preset = info.preset;
+    ui.edited = info.modified;
   };
   window.sqInfo = (info) => {
     if (info.preset !== undefined) { ui.preset = info.preset; ui.edited = false; }

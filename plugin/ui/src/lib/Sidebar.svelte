@@ -3,6 +3,7 @@
   import Switch from "./Switch.svelte";
   import Segmented from "./Segmented.svelte";
   import ParamSlider from "./ParamSlider.svelte";
+  import Menu from "./Menu.svelte";
   import { ui, edit, command } from "./bridge.svelte.js";
   import { P, UPMIX } from "./params.js";
 
@@ -10,6 +11,19 @@
   const pct = (v) => `${Math.round(v * 100)}%`;
   const db1 = (v) => `${v.toFixed(1)} dB`;
   const toggle = (id) => (v) => edit(id, v ? 1 : 0);
+
+  // Standalone app (Windows) options, the counterpart of the Mac app's Settings window.
+  const app = $derived(ui.app);
+  const appItems = $derived(app ? [
+    { label: "Keep running in the notification area when closed", checked: app.closeToTray,
+      action: () => command("closeToTray", app.closeToTray ? 0 : 1) },
+    { label: "Start with Windows", checked: app.startWithWindows,
+      action: () => command("startWithWindows", app.startWithWindows ? 0 : 1) },
+    { divider: true },
+    { label: app.appsInMix ? `Reset app volumes (${app.appsInMix} in the mix)` : "Reset app volumes",
+      action: () => command("resetAppVolumes") },
+    { label: "Windows sound settings…", action: () => command("soundSettings") },
+  ] : []);
 </script>
 
 <div class="sidebar panel">
@@ -33,7 +47,7 @@
         <div class="section-title">HEAD TRACKING</div>
         <ParamSlider title="Head rotation" id={P.headYaw} min={-180} max={180} defaultValue={0}
                      format={(v) => `${v >= 0 ? "+" : ""}${Math.round(v)}°`} />
-        <div class="caption2 dim">Automate this to turn the listener's head in your DAW.</div>
+        <div class="caption2 dim">{app ? "Drag to turn the listener’s head. Head tracking needs AirPods on a Mac." : "Automate this to turn the listener’s head in your DAW."}</div>
       </section>
     {:else}
       <section>
@@ -81,7 +95,15 @@
     </section>
 
     <div class="footer">
-      <span class="caption dim">VST3 · v{ui.version}</span>
+      {#if app}
+        <Menu items={appItems} icon up align="left">
+          <span class="caption dim settings">Windows · v{ui.version}
+            <svg viewBox="0 0 16 16" width="11" height="11"><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Zm6 3.3V7.2l-1.7-.4a4.6 4.6 0 0 0-.5-1.2l.9-1.5-1.1-1.1-1.5.9a4.6 4.6 0 0 0-1.2-.5L8.8 2H7.2l-.4 1.7a4.6 4.6 0 0 0-1.2.5l-1.5-.9-1.1 1.1.9 1.5c-.2.4-.4.8-.5 1.2L2 7.2v1.6l1.7.4c.1.4.3.8.5 1.2l-.9 1.5 1.1 1.1 1.5-.9c.4.2.8.4 1.2.5l.4 1.7h1.6l.4-1.7c.4-.1.8-.3 1.2-.5l1.5.9 1.1-1.1-.9-1.5c.2-.4.4-.8.5-1.2Z"
+              fill="currentColor"/></svg></span>
+        </Menu>
+      {:else}
+        <span class="caption dim">VST3 · v{ui.version}</span>
+      {/if}
       <a class="caption" href="https://savannahdsp.com" target="_blank" rel="noreferrer">Developed by Savannah DSP</a>
     </div>
   </div>
@@ -107,5 +129,6 @@
     background: var(--section-bg);
   }
   .toggle-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-  .footer { display: flex; justify-content: space-between; padding: 0 4px; }
+  .footer { display: flex; justify-content: space-between; align-items: center; padding: 0 4px; }
+  .settings { display: flex; align-items: center; gap: 4px; }
 </style>

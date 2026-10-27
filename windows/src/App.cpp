@@ -165,6 +165,10 @@ void App::tick() {
 }
 
 void App::pushParams() {
+    if (headYawDeg != lastYaw_) {
+        sq_engine_set_head_yaw(engine_, float(headYawDeg));
+        lastYaw_ = headYawDeg;
+    }
     const sq_params p = settings.toParams(enabled);
     if (havePushed_ && std::memcmp(&p, &lastPushed_, sizeof(p)) == 0) return;
     sq_engine_set_params(engine_, &p);

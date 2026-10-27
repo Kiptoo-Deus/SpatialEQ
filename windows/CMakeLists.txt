@@ -1,5 +1,7 @@
-# SpatialEQ for Windows: WASAPI routing + the shared DSP core + a Dear ImGui (Direct3D 11) interface.
+# SpatialEQ for Windows: WASAPI routing + the shared DSP core + the web interface shared with the VST3
+# editor (plugin/ui, the same design as the Mac app) in a WebView2 window through choc.
 #
+#   cd plugin/ui && npm ci && npm run build        # the interface -> plugin/ui/dist/index.html
 #   cmake -S windows -B build/windows
 #   cmake --build build/windows --config Release
 #   ctest --test-dir build/windows -C Release
@@ -16,11 +18,23 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 include(FetchContent)
-FetchContent_Declare(imgui
-  GIT_REPOSITORY https://github.com/ocornut/imgui.git
-  GIT_TAG v1.91.8
-  GIT_SHALLOW TRUE)
-FetchContent_MakeAvailable(imgui)
+FetchContent_Declare(choc
+  GIT_REPOSITORY https://github.com/Tracktion/choc.git
+  GIT_TAG 8af031c2ba4f5723f4b0a5ca14e0b4984af15b0e
+  SOURCE_SUBDIR header-only) # header-only: fetch it, don't build it
+FetchContent_MakeAvailable(choc)
+
+# The interface, embedded as a byte array (same as the plug-in).
+set(PLUGIN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../plugin)
+set(UI_HTML ${PLUGIN_DIR}/ui/dist/index.html)
+if(NOT EXISTS ${UI_HTML})
+  message(FATAL_ERROR "plugin/ui/dist/index.html is missing. Build the UI first: cd plugin/ui && npm ci && npm run build")
+endif()
+set(UI_HEADER ${PROJECT_BINARY_DIR}/generated/ui_html.h)
+add_custom_command(OUTPUT ${UI_HEADER}
+  COMMAND ${CMAKE_COMMAND} -DIN=${UI_HTML} -DOUT=${UI_HEADER} -DNAME=kUiHtml -P ${PLUGIN_DIR}/cmake/embed.cmake
+  DEPENDS ${UI_HTML} ${PLUGIN_DIR}/cmake/embed.cmake
+  COMMENT "Embedding the interface")
 
 set(DSP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../DSP)
 
@@ -39,25 +53,18 @@ target_compile_definitions(spatialeq_core PUBLIC UNICODE _UNICODE NOMINMAX WIN32
 target_compile_options(spatialeq_core PRIVATE /W4 /permissive- /utf-8)
 target_link_libraries(spatialeq_core PUBLIC ole32 avrt mmdevapi shell32 advapi32)
 
-add_library(imgui_dx11 STATIC
-  ${imgui_SOURCE_DIR}/imgui.cpp
-  ${imgui_SOURCE_DIR}/imgui_draw.cpp
-  ${imgui_SOURCE_DIR}/imgui_tables.cpp
-  ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-  ${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp
-  ${imgui_SOURCE_DIR}/backends/imgui_impl_dx11.cpp)
-target_include_directories(imgui_dx11 PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
-target_compile_definitions(imgui_dx11 PUBLIC IMGUI_DISABLE_OBSOLETE_FUNCTIONS)
-target_link_libraries(imgui_dx11 PUBLIC d3d11 dxgi d3dcompiler dwmapi)
-
 add_executable(SpatialEQ WIN32
   src/main.cpp
-  src/Ui.cpp
-  src/Scene.cpp
+  src/WebUi.cpp
+  ${PLUGIN_DIR}/source/platform_win.cpp # file dialogs and child-window embedding, shared with the VST3
+  ${UI_HEADER}
   resources/SpatialEQ.rc
   resources/SpatialEQ.manifest)
-target_link_libraries(SpatialEQ PRIVATE spatialeq_core imgui_dx11 comdlg32)
-target_compile_options(SpatialEQ PRIVATE /W4 /permissive- /utf-8)
+target_include_directories(SpatialEQ PRIVATE ${PLUGIN_DIR}/source ${choc_SOURCE_DIR} ${PROJECT_BINARY_DIR}/generated)
+target_link_libraries(SpatialEQ PRIVATE spatialeq_core comdlg32 dwmapi ole32 shlwapi version)
+target_compile_definitions(SpatialEQ PRIVATE SQ_VERSION_STRING="${PROJECT_VERSION}")
+# choc's WebView is header-only and large; it also trips /W4 warnings that aren't ours.
+target_compile_options(SpatialEQ PRIVATE /W3 /permissive- /utf-8 /bigobj)
 set_source_files_properties(resources/SpatialEQ.rc PROPERTIES COMPILE_DEFINITIONS
   "SQ_VERSION_MAJOR=${PROJECT_VERSION_MAJOR};SQ_VERSION_MINOR=${PROJECT_VERSION_MINOR};SQ_VERSION_PATCH=${PROJECT_VERSION_PATCH};SQ_VERSION_STRING=\"${PROJECT_VERSION}\"")
 
