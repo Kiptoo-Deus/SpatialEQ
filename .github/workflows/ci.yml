@@ -80,37 +80,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO build | tail -20
 
   windows:
-    name: Windows app
-    needs: dsp-tests
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Configure
-        run: cmake -S windows -B build/windows -A x64
-      - name: Build
-        run: cmake --build build/windows --config Release
-      - name: Test
-        run: ctest --test-dir build/windows -C Release --output-on-failure
-      - name: Install Inno Setup
-        shell: pwsh
-        run: |
-          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
-      - name: Package (setup program and portable zip)
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force out | Out-Null
-          $version = (Select-String -Path windows/CMakeLists.txt -Pattern 'project\(SpatialEQ VERSION ([0-9.]+)').Matches[0].Groups[1].Value
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Qp "/DVersion=$version" `
-            "/DAppExe=$PWD\build\windows\Release\SpatialEQ.exe" "/DOutDir=$PWD\out" windows\installer\SpatialEQ.iss
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Compress-Archive -Path build/windows/Release/SpatialEQ.exe -DestinationPath out/SpatialEQ-windows-x64.zip
-      - uses: actions/upload-artifact@v4
-        with:
-          name: SpatialEQ-Windows
-          path: out/*
-
-  vst3-windows:
-    name: VST3 plug-in (Windows)
+    name: Windows (app + VST3 installer)
     needs: dsp-tests
     runs-on: windows-latest
     steps:
@@ -120,32 +90,53 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: plugin/ui/package-lock.json
-      - name: Build the UI
+      - name: Build and test the app
+        run: |
+          cmake -S windows -B build/windows -A x64
+          cmake --build build/windows --config Release
+          ctest --test-dir build/windows -C Release --output-on-failure
+      - name: Build the plug-in UI
         working-directory: plugin/ui
         run: |
           npm ci
           npm run build
-      - name: Configure
-        run: cmake -S plugin -B build/plugin -A x64
-      - name: Build (runs the Steinberg validator)
-        run: cmake --build build/plugin --config Release --target SpatialEQ
+      - name: Build the VST3 (runs the Steinberg validator)
+        run: |
+          cmake -S plugin -B build/plugin -A x64
+          cmake --build build/plugin --config Release --target SpatialEQ validator
       - name: Install Inno Setup
         shell: pwsh
         run: |
           if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
-      - name: Package (setup program and zip)
+      - name: Build the installer
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force out | Out-Null
-          $version = (Select-String -Path plugin/CMakeLists.txt -Pattern 'project\(SpatialEQPlugin VERSION ([0-9]+\.[0-9]+\.[0-9]+)').Matches[0].Groups[1].Value
+          $version = (Select-String -Path windows/CMakeLists.txt -Pattern 'project\(SpatialEQ VERSION ([0-9.]+)').Matches[0].Groups[1].Value
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Qp "/DVersion=$version" `
-            "/DBundle=$PWD\build\plugin\VST3\Release\SpatialEQ.vst3" "/DOutDir=$PWD\out" plugin\installer\SpatialEQ-VST3.iss
+            "/DAppExe=$PWD\build\windows\Release\SpatialEQ.exe" `
+            "/DBundle=$PWD\build\plugin\VST3\Release\SpatialEQ.vst3" `
+            "/DOutDir=$PWD\out" windows\installer\SpatialEQ-Windows.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Compress-Archive -Path build/plugin/VST3/Release/SpatialEQ.vst3 -DestinationPath out/SpatialEQ-VST3-windows-x64.zip
+      - name: Install it and check the app and the VST3
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem out\SpatialEQ-*-windows-x64-setup.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/LOG=install.log' -Wait
+          $vst3 = "$env:CommonProgramFiles\VST3\SpatialEQ.vst3"
+          foreach ($f in "$env:ProgramFiles\Savannah DSP\SpatialEQ\SpatialEQ.exe",
+                         "$vst3\Contents\x86_64-win\SpatialEQ.vst3", "$vst3\PlugIn.ico", "$vst3\desktop.ini") {
+            if (-not (Test-Path $f)) { Get-Content install.log -Tail 40; throw "missing after install: $f" }
+            Write-Output "installed: $f"
+          }
+          if (-not ((Get-Item $vst3).Attributes -band [IO.FileAttributes]::System)) { throw "VST3 folder icon not enabled" }
+          $validator = Get-ChildItem build\plugin -Recurse -Filter validator.exe | Select-Object -First 1
+          & $validator.FullName $vst3 | Select-String "Result:"
+          if ($LASTEXITCODE -ne 0) { throw "validator failed on the installed plug-in" }
       - uses: actions/upload-artifact@v4
         with:
-          name: SpatialEQ-VST3-Windows
-          path: out/*
+          name: SpatialEQ-Windows
+          path: out/*.exe
 
   android:
     name: Android app

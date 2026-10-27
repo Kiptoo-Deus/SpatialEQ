@@ -12,6 +12,8 @@
 #include "imgui_impl_win32.h"
 
 #include <windows.h>
+
+#include <chrono>
 #include <d3d11.h>
 #include <dxgi.h>
 #include <shellapi.h>
@@ -302,6 +304,13 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmdLine, int) {
         UpdateWindow(hwnd);
     }
 
+    // Frame pacing: the spectrum and meters change about 30 times a second, so draw 30 fps while nobody
+    // is using the window, and every vsync for half a second after any mouse or keyboard input.
+    using Clock = std::chrono::steady_clock;
+    constexpr auto kIdleFrame = std::chrono::milliseconds(33);
+    constexpr auto kInteractive = std::chrono::milliseconds(500);
+    Clock::time_point lastInput{}, lastFrame{};
+
     bool running = true;
     while (running) {
         const bool visible = IsWindowVisible(hwnd) && !IsIconic(hwnd);
@@ -311,6 +320,9 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmdLine, int) {
         }
         MSG msg;
         while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+            if ((msg.message >= WM_MOUSEFIRST && msg.message <= WM_MOUSELAST) ||
+                (msg.message >= WM_KEYFIRST && msg.message <= WM_KEYLAST))
+                lastInput = Clock::now();
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
             if (msg.message == WM_QUIT) running = false;
@@ -343,6 +355,17 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmdLine, int) {
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
         const HRESULT hr = gSwapChain->Present(1, 0);
         if (hr == DXGI_STATUS_OCCLUDED) Sleep(16);
+
+        const auto now = Clock::now();
+        if (now - lastInput > kInteractive) {
+            // Idle: wait out the rest of the 30 fps frame, waking at once on input.
+            const auto due = lastFrame + kIdleFrame;
+            if (due > now) {
+                const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(due - now).count();
+                MsgWaitForMultipleObjects(0, nullptr, FALSE, static_cast<DWORD>(ms), QS_ALLINPUT);
+            }
+        }
+        lastFrame = Clock::now();
     }
 
     app.shutdown();

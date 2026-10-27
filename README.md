@@ -42,7 +42,7 @@ All platforms share one C++17 DSP core (`DSP/`), so sound and presets are identi
 Quitting SpatialEQ returns your Mac's audio to normal immediately. To uninstall, quit it and delete it from Applications.
 
 ### Windows
-1. Download **`SpatialEQ-<version>-windows-x64-setup.exe`** from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest) (or a CI build) and run it. It adds SpatialEQ to the Start menu and to **Settings → Apps** for uninstalling. Prefer no installer? **`SpatialEQ-windows-x64.zip`** holds the same single portable `SpatialEQ.exe`. Settings live in `%APPDATA%\SpatialEQ`.
+1. Download **`SpatialEQ-<version>-windows-x64-setup.exe`** from the [latest release](https://github.com/Kiptoo-Deus/SpatialEQ/releases/latest) (or a CI build) and run it. It installs the app (Start menu, optional desktop icon) and the VST3 plug-in; untick either one in the setup. Uninstall from **Settings → Apps**. Settings live in `%APPDATA%\SpatialEQ`.
 2. That's it: the source defaults to **All apps** and the output to your Windows default device, so it works with a single pair of headphones or speakers. Pick another output from the second menu if you like.
 
 How "All apps" works: Windows has no public API that captures other apps' audio *and* silences it (the macOS process tap does both). SpatialEQ captures every app except itself (process loopback, Windows 10 2004+) and, while an app is playing, turns it down to 0.01 % in the Windows volume mixer. The mixer is a floating-point multiply, so SpatialEQ scales the captured sound back up exactly and plays the processed result; what still leaks out directly is 80 dB down. Apps get their volume back as soon as they pause, when SpatialEQ stops or quits, and on sign-out. If SpatialEQ is ever killed mid-playback, it puts the volumes right the next time it runs, and **App → Reset app volumes** does so on demand. While it runs you'll see other apps near zero in the volume mixer; that's expected.
@@ -53,7 +53,7 @@ Closing the window keeps SpatialEQ running in the notification area; **Quit** fr
 
 ### VST3 and Audio Unit plug-ins
 - **macOS:** the main installer **`SpatialEQ-<version>-macOS.pkg`** (see above) puts the VST3 in `/Library/Audio/Plug-Ins/VST3` and the Audio Unit (for Logic Pro and GarageBand) in `/Library/Audio/Plug-Ins/Components`.
-- **Windows:** run **`SpatialEQ-VST3-<version>-windows-x64-setup.exe`**. It installs `SpatialEQ.vst3` into `C:\Program Files\Common Files\VST3` (or unzip **`SpatialEQ-VST3-windows-x64.zip`** there yourself). The editor uses Microsoft Edge WebView2, which Windows 10 and 11 already include.
+- **Windows:** the Windows setup (see above) puts `SpatialEQ.vst3` in `C:\Program Files\Common Files\VST3`. The editor uses Microsoft Edge WebView2, which Windows 10 and 11 already include. (Audio Units are a macOS-only format.)
 
 It has the same interface as the Mac app: the 3D scene, the sidebar and the parametric EQ editor. It also has the same 12 presets and AutoEq import and export. Head rotation is a parameter, so you can automate it in your DAW.
 
@@ -369,7 +369,7 @@ plugin/scripts/package_mac.sh                                    # macOS: VST3 +
 macos/scripts/package_all.sh                                     # macOS release: app + VST3 + AU installer and the .dmg
 ```
 
-Icons and installer artwork come from `branding/`: `swift branding/make_assets.swift` regenerates the `.icns`, `.ico`, `.pkg`/`.dmg` backgrounds and Windows setup wizard images from the box artwork in `branding/source/`. The Windows setup programs are Inno Setup scripts (`windows/installer`, `plugin/installer`), built in CI.
+Icons and installer artwork come from `branding/`: `swift branding/make_assets.swift` regenerates the `.icns`, `.ico`, `.pkg`/`.dmg` backgrounds and Windows setup wizard images from the box artwork in `branding/source/`. The Windows setup (app + VST3) is an Inno Setup script, `windows/installer/SpatialEQ-Windows.iss`, built and test-installed in CI.
 
 The UI is a Svelte 5 + Three.js app (`plugin/ui`) that recreates the Mac app's interface. It is compiled to a single HTML file, embedded in the plug-in, and shown in a native web view (WKWebView / WebView2) through [choc](https://github.com/Tracktion/choc). Run `npm run dev` in `plugin/ui` to work on it in a browser with simulated audio.
 
