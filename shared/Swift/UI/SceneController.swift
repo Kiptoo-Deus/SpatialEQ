@@ -57,6 +57,10 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
     private let terrainLines = SCNNode()
     private let ribbon = SCNNode()
     private let terrainElement: SCNGeometryElement
+    private var terrainVerts = [SCNVector3](repeating: SCNVector3(0, 0, 0),
+                                            count: Analyzer.bandCount * Analyzer.historyLength)
+    private var terrainColors = [Float](repeating: 0, count: Analyzer.bandCount * Analyzer.historyLength * 4)
+    private var terrainFrame = -1
     private let terrainMaterials: (fill: SCNMaterial, lines: SCNMaterial)
 
     // Shared between the main thread and the render thread.
@@ -382,28 +386,37 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
     }
 
     private func updateTerrain(_ snap: Analyzer.Snapshot) {
+        // The scene renders at 60 fps; rebuild the terrain only when the analyser has new data.
+        guard snap.frame != terrainFrame else { return }
+        terrainFrame = snap.frame
         let cols = Analyzer.bandCount, rows = Analyzer.historyLength
-        var verts = [SCNVector3]()
-        verts.reserveCapacity(cols * rows)
-        var colors = [Float]()
-        colors.reserveCapacity(cols * rows * 4)
-        for r in 0..<rows {
-            let row = r < snap.history.count ? snap.history[r] : []
-            let z = Self.terrainFrontZ - Float(r) / Float(rows - 1) * Self.terrainDepth
-            let fade = 1 - Float(r) / Float(rows)
-            for c in 0..<cols {
-                let v = c < row.count ? row[c] : 0
-                let x = (Float(c) / Float(cols - 1) - 0.5) * Self.terrainWidth
-                verts.append(SCNVector3(CGFloat(x), CGFloat(Self.floorY + v * 1.3), CGFloat(z)))
-                let (cr, cg, cb) = Self.heatColor(v)
-                colors += [cr * fade, cg * fade, cb * fade, 1]
+        terrainVerts.withUnsafeMutableBufferPointer { verts in
+            terrainColors.withUnsafeMutableBufferPointer { colors in
+                for r in 0..<rows {
+                    let row = r < snap.history.count ? snap.history[r] : []
+                    let z = CGFloat(Self.terrainFrontZ - Float(r) / Float(rows - 1) * Self.terrainDepth)
+                    let fade = 1 - Float(r) / Float(rows)
+                    for c in 0..<cols {
+                        let v = c < row.count ? row[c] : 0
+                        let x = (Float(c) / Float(cols - 1) - 0.5) * Self.terrainWidth
+                        let i = r * cols + c
+                        verts[i] = SCNVector3(CGFloat(x), CGFloat(Self.floorY + v * 1.3), z)
+                        let k = Int(min(1, max(0, v)) * Float(Self.heatLUTSize - 1) + 0.5) * 3
+                        colors[i * 4] = Self.heatLUT[k] * fade
+                        colors[i * 4 + 1] = Self.heatLUT[k + 1] * fade
+                        colors[i * 4 + 2] = Self.heatLUT[k + 2] * fade
+                        colors[i * 4 + 3] = 1
+                    }
+                }
             }
         }
-        let geo = SCNGeometry(sources: [SCNGeometrySource(vertices: verts), Self.colorSource(colors, count: verts.count)],
+        // One vertex upload shared by the filled surface and its wireframe.
+        let vertexSource = SCNGeometrySource(vertices: terrainVerts)
+        let geo = SCNGeometry(sources: [vertexSource, Self.colorSource(terrainColors, count: terrainVerts.count)],
                               elements: [terrainElement])
         geo.materials = [terrainMaterials.fill]
         terrain.geometry = geo
-        let lineGeo = SCNGeometry(sources: [SCNGeometrySource(vertices: verts)], elements: [terrainElement])
+        let lineGeo = SCNGeometry(sources: [vertexSource], elements: [terrainElement])
         lineGeo.materials = [terrainMaterials.lines]
         terrainLines.geometry = lineGeo
     }
@@ -437,6 +450,13 @@ final class SceneController: NSObject, SCNSceneRendererDelegate {
         m.isDoubleSided = true
         geo.materials = [m]
         ribbon.geometry = geo
+    }
+
+    /// heatColor sampled at 256 levels (r, g, b), so the terrain doesn't evaluate it 3,072 times a frame.
+    private static let heatLUTSize = 256
+    private static let heatLUT: [Float] = (0..<heatLUTSize).flatMap { i -> [Float] in
+        let (r, g, b) = heatColor(Float(i) / Float(heatLUTSize - 1))
+        return [r, g, b]
     }
 
     private static func heatColor(_ v: Float) -> (Float, Float, Float) {

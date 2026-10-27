@@ -20,7 +20,7 @@ struct SceneView3D: NSViewRepresentable {
         view.backgroundColor = NSColor(Theme.background)
         view.antialiasingMode = .multisampling4X
         view.rendersContinuously = true
-        view.preferredFramesPerSecond = 60
+        view.preferredFramesPerSecond = OrbitSceneView.idleFPS
         view.controller = controller
         controller.onSourceMoved = { [weak state] index, az, el, dist in
             DispatchQueue.main.async { state?.setSource(index, azimuth: az, elevation: el, distance: dist) }
@@ -49,7 +49,7 @@ final class OrbitSceneView: SCNView {
     private var occlusionObserver: NSObjectProtocol?
 
     /// Render only while the window is on screen; a hidden or covered window otherwise keeps
-    /// drawing 60 frames a second for nobody.
+    /// drawing frames for nobody.
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if let o = occlusionObserver { NotificationCenter.default.removeObserver(o) }
@@ -67,7 +67,28 @@ final class OrbitSceneView: SCNView {
         isPlaying = visible
     }
 
+    /// The spectrum changes about 30 times a second, so 30 fps is enough while nothing moves the
+    /// camera or a source; direct manipulation switches to 60 fps so it stays smooth.
+    static let idleFPS = 30
+    private static let interactiveFPS = 60
+    private var idleTimer: Timer?
+
+    private func interacting(_ active: Bool) {
+        idleTimer?.invalidate()
+        idleTimer = nil
+        preferredFramesPerSecond = active ? Self.interactiveFPS : Self.idleFPS
+    }
+
+    /// Scrolling and pinching have no "end" event: drop back to the idle rate shortly after.
+    private func interactingBriefly() {
+        interacting(true)
+        idleTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { [weak self] _ in
+            self?.interacting(false)
+        }
+    }
+
     override func mouseDown(with event: NSEvent) {
+        interacting(true)
         let p = convert(event.locationInWindow, from: nil)
         lastPoint = p
         if event.clickCount == 2 {
@@ -127,15 +148,18 @@ final class OrbitSceneView: SCNView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        interacting(false)
         drag = .none
         controller?.draggingIndex = nil
     }
 
     override func scrollWheel(with event: NSEvent) {
+        interactingBriefly()
         zoom(by: 1 + event.scrollingDeltaY * (event.hasPreciseScrollingDeltas ? 0.004 : 0.04))
     }
 
     override func magnify(with event: NSEvent) {
+        interactingBriefly()
         zoom(by: 1 - event.magnification)
     }
 

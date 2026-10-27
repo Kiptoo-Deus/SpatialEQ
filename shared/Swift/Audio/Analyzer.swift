@@ -9,6 +9,7 @@ final class Analyzer {
         var bands: [Float]          // 0...1, low to high frequency
         var history: [[Float]]      // newest first
         var level: Float            // 0...1 overall loudness
+        var frame = 0               // increments with every published analysis
     }
 
     static let bandCount = 64
@@ -144,6 +145,7 @@ final class Analyzer {
         latest.history.insert(bands, at: 0)
         if latest.history.count > Self.historyLength { latest.history.removeLast() }
         latest.level = latest.level * 0.7 + level * 0.3
+        latest.frame &+= 1
         os_unfair_lock_unlock(&lock)
     }
 }
