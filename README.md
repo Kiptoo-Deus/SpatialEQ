@@ -103,7 +103,7 @@ With a free Apple ID, apps installed this way stop opening after 7 days; run the
   - **All apps** capture that works on a single device (no driver or virtual cable), or any playback device / virtual cable as the source. Automatic selection follows devices as they are plugged in or removed.
   - A guard that passes audio through at its normal level whenever an app is not turned down yet (for example one that just started), so nothing is ever boosted by mistake.
   - Notification-area icon with open, on/off and quit; Start with Windows.
-  - Native Win32 + Direct3D 11 interface (Dear ImGui) with the same layout as the Mac app; portable single `.exe` with no runtime to install.
+  - The same interface as the Mac app (the shared Svelte UI, also used by the VST3 editor) in Microsoft Edge WebView2, which Windows 10 and 11 include; installed with the VST3 by one setup program.
 - **macOS:**
   - Menu bar panel with on/off, output device, mode and presets.
   - Output picker for any device ("System Default" follows macOS).
@@ -379,7 +379,7 @@ The UI is a Svelte 5 + Three.js app (`plugin/ui`) that recreates the Mac app's i
 | `shared/Swift/` | Settings, presets, AutoEq, analyser, head tracking and the 3D scene shared by macOS and iOS |
 | `macos/` | macOS app (Core Audio tap routing, menu bar, Settings, installer scripts) |
 | `ios/` | iOS player app |
-| `windows/` | Windows app (WASAPI routing, app capture and mixer ducking, device handling, Dear ImGui UI) and its unit tests |
+| `windows/` | Windows app (WASAPI routing, app capture and mixer ducking, device handling; the shared web interface in WebView2), its installer and unit tests |
 | `plugin/` | VST3 plug-in: `source/` (C++ effect, parameters, presets, web-view editor) and `ui/` (Svelte UI) |
 | `android/` | Android app (Kotlin + Compose, JNI to the DSP core), Play Store assets and a test-player helper |
 | `docs/` | Screenshots, demo video and the privacy policy (served by GitHub Pages) |
