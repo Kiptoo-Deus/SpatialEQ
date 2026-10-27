@@ -135,10 +135,29 @@ jobs:
           $validator = Get-ChildItem build\plugin -Recurse -Filter validator.exe | Select-Object -First 1
           & $validator.FullName $vst3 | Select-String "Result:"
           if ($LASTEXITCODE -ne 0) { throw "validator failed on the installed plug-in" }
+      - name: Launch the installed app and screenshot it
+        shell: pwsh
+        run: |
+          $exe = "$env:ProgramFiles\Savannah DSP\SpatialEQ\SpatialEQ.exe"
+          $p = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 20
+          if ($p.HasExited) { throw "SpatialEQ.exe exited (code $($p.ExitCode))" }
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save("$PWD\out\screenshot.png")
+          Stop-Process $p -Force
       - uses: actions/upload-artifact@v4
         with:
           name: SpatialEQ-Windows
           path: out/*.exe
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: SpatialEQ-Windows-screenshot
+          path: out/screenshot.png
+          if-no-files-found: ignore
 
   android:
     name: Android app
