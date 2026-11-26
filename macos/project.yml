@@ -3,7 +3,7 @@ options:
   bundleIdPrefix: com.savannahdsp
   deploymentTarget:
     macOS: "14.2"
-  createIntermediateGroups: true
+  createIntermediateGroups: false
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -21,10 +21,10 @@ targets:
       - path: App
       - path: ../shared/Swift
         group: Shared
-      - path: ../DSP/src
-        group: DSP
-      - path: ../DSP/include
-        group: DSP
+      - path: ../DSP
+        excludes:
+          - tests
+          - CMakeLists.txt
       - path: ../branding/icon/SpatialEQ.icns
         group: Resources
         buildPhase: resources
