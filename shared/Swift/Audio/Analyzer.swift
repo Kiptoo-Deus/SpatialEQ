@@ -77,12 +77,16 @@ final class Analyzer {
     }
 
     private func computeBins() {
-        let binHz = Float(sampleRate) / Float(fftSize)
+        // Guard against 0/NaN rates and low Bluetooth rates (AirPods at 16/24 kHz while the mic
+        // is active): bands above Nyquist would otherwise yield a > b and trap on Range creation.
+        let rate = sampleRate.isFinite && sampleRate >= 8000 ? sampleRate : 48000
+        let binHz = Float(rate) / Float(fftSize)
+        let top = fftSize / 2 - 1
         binRanges = (0..<Self.bandCount).map { i in
             let lo = Self.minFreq * pow(Self.maxFreq / Self.minFreq, Float(i) / Float(Self.bandCount))
             let hi = Self.minFreq * pow(Self.maxFreq / Self.minFreq, Float(i + 1) / Float(Self.bandCount))
-            let a = max(1, Int(lo / binHz))
-            let b = min(fftSize / 2 - 1, max(a + 1, Int(hi / binHz)))
+            let a = min(top - 1, max(1, Int(lo / binHz)))
+            let b = min(top, max(a + 1, Int(hi / binHz)))
             return a..<b
         }
     }
